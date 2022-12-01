@@ -1,0 +1,4 @@
+[ ] Open Visual Studio project.
+[ ] Open a list of directories to search.
+[ ] Implement the pipe setup.
+[ ] Support drag and drop.
