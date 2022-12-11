@@ -130,13 +130,13 @@ impl SettingsWindow {
         }
 
         let display_size = ui.io().display_size;
-        let settings_window_size = [500.0, 375.0];
+        let settings_window_size = [750.0, 562.0];
         let pos_x = (display_size[0] / 2.0) - (settings_window_size[0] / 2.0);
         let pos_y = (display_size[1] / 2.0) - (settings_window_size[1] / 2.0);
 
         let window = ui
             .window("Settings")
-            .size([500.0, 375.0], Condition::Appearing)
+            .size(settings_window_size, Condition::Appearing)
             .position([pos_x, pos_y], Condition::Appearing)
             .opened(&mut self.opened);
 
