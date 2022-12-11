@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use crate::sys::args;
+use crate::args;
 use std::{collections::HashMap, process::Command};
 
 fn replace(argument: &str, replacements: &HashMap<String, String>) -> Result<String> {
@@ -52,7 +52,7 @@ fn replace(argument: &str, replacements: &HashMap<String, String>) -> Result<Str
 }
 
 pub fn build_command(editor: &str, file_path: String, line_number: usize) -> Result<Command> {
-    let arguments = args::parse_args(editor);
+    let arguments = args::parse_args(editor)?;
     if let Some((editor, arguments)) = arguments.split_first() {
         let mut replacements = HashMap::new();
         replacements.insert(String::from("file"), file_path);

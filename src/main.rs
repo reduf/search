@@ -1,12 +1,12 @@
 // #![windows_subsystem = "windows"]
 
+mod args;
 mod clipboard;
 mod editor;
 mod help;
 mod search;
 mod settings;
 mod support;
-mod sys;
 
 use glium::glutin::event::VirtualKeyCode;
 use ignore::{WalkBuilder, WalkState};
