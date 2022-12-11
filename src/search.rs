@@ -1,6 +1,9 @@
 use anyhow::{Result};
-use grep::searcher::{self, Searcher, SearcherBuilder, SinkMatch};
-use grep::regex::{RegexMatcher, RegexMatcherBuilder};
+use grep::{
+    matcher::Matcher,
+    regex::{RegexMatcher, RegexMatcherBuilder},
+    searcher::{self, Searcher, SearcherBuilder, SinkMatch},
+};
 use ignore::{overrides::{Override, OverrideBuilder}};
 use std::{
     path::{Path, PathBuf},
@@ -15,6 +18,7 @@ use regex;
 pub struct SearchResultEntry {
     pub line_number: u64,
     pub text: String,
+    pub matches: Vec<(usize, usize)>,
 }
 
 pub struct SearchResult {
@@ -31,18 +35,31 @@ impl searcher::SinkError for SearchError {
     }
 }
 
-// @Cleanup: Remove the pub here
-pub struct SearchSink<'a>(pub &'a mut Vec<SearchResultEntry>);
-impl searcher::Sink for SearchSink<'_> {
+struct SearchSink<'a, 'm> {
+    results: &'a mut Vec<SearchResultEntry>,
+    matcher: &'m RegexMatcher,
+}
+
+impl searcher::Sink for SearchSink<'_, '_> {
     type Error = SearchError;
 
     fn matched(&mut self, _searcher: &Searcher, mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {
-        let text = String::from_utf8_lossy(mat.lines().next().unwrap()).into_owned();
+        let mut at = 0;
+        let mut matches = Vec::new();
+        while let Ok(Some(matche)) = self.matcher.find_at(mat.bytes(), at) {
+            assert_eq!(mat.bytes()[matche], mat.bytes()[matche.start()..matche.end()]);
+            matches.push((matche.start(), matche.end()));
+            at = matche.end();
+        }
+
+        let text = String::from_utf8_lossy(mat.bytes()).into_owned();
         let result = SearchResultEntry {
             line_number: mat.line_number().unwrap(),
             text: text,
+            matches: matches,
         };
-        self.0.push(result);
+
+        self.results.push(result);
 
         // Continue search
         Ok(true)
@@ -86,7 +103,10 @@ pub struct SearchWorker {
 impl SearchWorker {
     pub fn search_path(&mut self, path: PathBuf) -> Option<SearchResult> {
         let mut entries = Vec::new();
-        let search_sink = SearchSink(&mut entries);
+        let search_sink = SearchSink {
+            results: &mut entries,
+            matcher: &self.matcher,
+        };
 
         if let Err(err) = self.searcher.search_path(&self.matcher, &path, search_sink) {
             println!("Failed to search in path '{:?}', error: {:?}", path, err);

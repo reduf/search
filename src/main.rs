@@ -35,6 +35,7 @@ pub struct UiSearchEntry {
     pub path: Rc<String>,
     pub line_number: u64,
     pub text: String,
+    pub matches: Vec<(usize, usize)>,
 }
 
 impl UiSearchEntry {
@@ -44,6 +45,7 @@ impl UiSearchEntry {
             path,
             line_number: entry.line_number,
             text: entry.text,
+            matches: entry.matches,
         }
     }
 }
@@ -298,6 +300,19 @@ fn draw_menu(ui: &Ui, keep_running: &mut bool, state: &mut SearchTabs, settings:
     }
 }
 
+fn draw_result(ui: &Ui, result: &UiSearchEntry) {
+    const COLOR_RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+    let mut printed = 0;
+    for (start, end) in result.matches.iter().map(|&val| val) {
+        ui.text(result.text.get(printed..start).unwrap_or("<invalid utf8>"));
+        ui.same_line_with_spacing(0.0, 0.0);
+        ui.text_colored(COLOR_RED, result.text.get(start..end).unwrap_or("<invalid utf8>"));
+        ui.same_line_with_spacing(0.0, 0.0);
+        printed = end;
+    }
+    ui.text(result.text.get(printed..).unwrap_or("<invalid utf8>"));
+}
+
 fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, settings: &Settings) {
     tab.update_pending_search();
 
@@ -472,7 +487,7 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
                         ui.text(format!("{}", tab.results[row_id].line_number));
 
                         ui.table_next_column();
-                        ui.text(&tab.results[row_id].text);
+                        draw_result(ui, &tab.results[row_id]);
                     }
                 }
             }
