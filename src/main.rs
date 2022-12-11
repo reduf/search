@@ -212,6 +212,7 @@ fn search_parallel(tab: &mut SearchTab, settings: &Settings) {
         settings.number_of_threads as usize
     };
 
+    let search_binary = settings.search_binary;
     let walker = builder.threads(threads).build_parallel();
 
     std::thread::spawn(move || {
@@ -240,7 +241,7 @@ fn search_parallel(tab: &mut SearchTab, settings: &Settings) {
                     return WalkState::Continue;
                 };
 
-                if let Some(result) = workers[0].search_path(entry) {
+                if let Some(result) = workers[0].search_path(entry, search_binary) {
                     return match tx.send(result) {
                         Ok(_) => WalkState::Continue,
                         Err(_) => WalkState::Quit,

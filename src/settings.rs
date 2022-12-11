@@ -11,6 +11,7 @@ use std::{
 pub struct Settings {
     pub number_of_threads: i32,
     pub follow_symlink: bool,
+    pub search_binary: bool,
     pub editor_path: String,
 }
 
@@ -19,6 +20,7 @@ impl Settings {
         Self {
             number_of_threads: 0,
             follow_symlink: false,
+            search_binary: false,
             editor_path: String::new(),
         }
     }
@@ -149,6 +151,12 @@ impl SettingsWindow {
                 ui.text("Follow Symlinks: ");
                 ui.table_next_column();
                 ui.checkbox("##symlinks", &mut self.settings.follow_symlink);
+
+                ui.table_next_column();
+                ui.text("Search binary: ");
+                ui.table_next_column();
+                ui.checkbox("##binary", &mut self.settings.search_binary);
+                help::show_help(ui, help::SETTINGS_SEARCH_BINARY_HELP);
 
                 ui.table_next_column();
                 ui.text("Editor Path: ");

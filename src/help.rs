@@ -30,6 +30,19 @@ pub const GLOBS_USAGE: &str = indoc! { "
     always remain available via the -g/--glob flag.
 "};
 
+pub const SETTINGS_SEARCH_BINARY_HELP: &str = indoc! { "
+    Enabling this flag will cause ripgrep to search binary files. By default,
+    ripgrep attempts to automatically skip binary files in order to improve the
+    relevance of results and make the search faster.
+
+    Binary files are heuristically detected based on whether they contain a NUL
+    byte or not. By default (without this flag set), once a NUL byte is seen,
+    ripgrep will stop searching the file. Usually, NUL bytes occur in the beginning
+    of most binary files. If a NUL byte occurs after a match, then ripgrep will
+    still stop searching the rest of the file, but a warning will be printed.
+
+"};
+
 pub const SETTINGS_EDITOR_HELP: &str = indoc! { "
     Command line to use when using F4 which can be interpolated with:
     - {file} Path to the file
