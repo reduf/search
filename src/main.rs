@@ -4,6 +4,7 @@ mod args;
 mod clipboard;
 mod editor;
 mod help;
+mod hotkeys;
 mod search;
 mod settings;
 mod support;
@@ -26,6 +27,7 @@ use std::{
 use crate::{
     editor::*,
     help::*,
+    hotkeys::*,
     search::*,
     settings::*,
 };
@@ -527,6 +529,7 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
 fn main() {
     let system = support::init("Search");
     let mut settings = SettingsWindow::open_setting();
+    let mut hotkeys = HotkeysWindow::new();
 
     let mut pending_command: Option<Child> = None;
     let mut commands = VecDeque::new();
@@ -542,6 +545,8 @@ fn main() {
         let window_size = ui.io().display_size;
 
         settings.draw_settings(ui);
+        hotkeys.draw_hotkeys_help(ui);
+
         let window = ui.window("Search##main")
             .position([0.0, 0.0], Condition::FirstUseEver)
             .size(window_size, Condition::Always)
@@ -626,6 +631,10 @@ fn main() {
                         println!("Editor not configured");
                     }
                 }
+            }
+
+            if ui.is_key_index_released(VirtualKeyCode::F1 as i32) {
+                hotkeys.toggle_open();
             }
 
             if let Some(mut child) = pending_command.take() {
