@@ -240,8 +240,7 @@ fn search_parallel(tab: &mut SearchTab, settings: &Settings) {
                     return WalkState::Continue;
                 };
 
-                let path = entry.path().to_path_buf();
-                if let Some(result) = workers[0].search_path(path) {
+                if let Some(result) = workers[0].search_path(entry) {
                     return match tx.send(result) {
                         Ok(_) => WalkState::Continue,
                         Err(_) => WalkState::Quit,

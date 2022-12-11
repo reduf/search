@@ -2,7 +2,7 @@ use anyhow::{Result};
 use grep::{
     matcher::Matcher,
     regex::{RegexMatcher, RegexMatcherBuilder},
-    searcher::{self, Searcher, SearcherBuilder, SinkMatch},
+    searcher::{self, BinaryDetection, Searcher, SearcherBuilder, SinkMatch},
 };
 use ignore::{overrides::{Override, OverrideBuilder}};
 use std::{
@@ -101,20 +101,32 @@ pub struct SearchWorker {
 }
 
 impl SearchWorker {
-    pub fn search_path(&mut self, path: PathBuf) -> Option<SearchResult> {
+    pub fn search_path(&mut self, dir_entry: ignore::DirEntry) -> Option<SearchResult> {
         let mut entries = Vec::new();
         let search_sink = SearchSink {
             results: &mut entries,
             matcher: &self.matcher,
         };
 
+        let bin_detection = if dir_entry.depth() == 0 {
+            // If the depth of the entry is 0, it means the file was specified
+            // explicitly. So, we don't exclude this file if we detect it to be
+            // a binary.
+            BinaryDetection::convert(b'\x00')
+        } else {
+            BinaryDetection::quit(b'\x00')
+        };
+
+        self.searcher.set_binary_detection(bin_detection);
+
+        let path = dir_entry.into_path();
         if let Err(err) = self.searcher.search_path(&self.matcher, &path, search_sink) {
             println!("Failed to search in path '{:?}', error: {:?}", path, err);
             return None;
         }
 
         let result = SearchResult {
-            path: path.clone(),
+            path,
             entries: entries,
         };
 
