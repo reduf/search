@@ -9,9 +9,13 @@ use std::{
 
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default)]
     pub number_of_threads: i32,
+    #[serde(default)]
     pub follow_symlink: bool,
+    #[serde(default)]
     pub search_binary: bool,
+    #[serde(default)]
     pub editor_path: String,
 }
 
