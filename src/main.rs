@@ -526,6 +526,12 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
     }
 }
 
+fn remove_transparency(ui: &Ui, style_color: StyleColor) -> ColorStackToken<'_> {
+    let mut color = ui.style_color(style_color);
+    color[3] = 1.0;
+    ui.push_style_color(style_color, color)
+}
+
 fn main() {
     let system = support::init("Search");
     let mut settings = SettingsWindow::open_setting();
@@ -543,6 +549,11 @@ fn main() {
 
     system.main_loop(move |keep_running, ui| {
         let window_size = ui.io().display_size;
+
+        let _backgrounds = [
+            remove_transparency(ui, StyleColor::WindowBg),
+            remove_transparency(ui, StyleColor::FrameBg),
+        ];
 
         settings.draw_settings(ui);
         hotkeys.draw_hotkeys_help(ui);
