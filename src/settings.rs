@@ -7,7 +7,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq)]
+pub enum StyleColor {
+    Dark,
+    Light,
+    Classic,
+}
+
+impl Default for StyleColor {
+    fn default() -> Self { Self::Dark }
+}
+
+#[derive(Default, Serialize, Deserialize)]
 pub struct Settings {
     #[serde(default)]
     pub number_of_threads: i32,
@@ -17,17 +28,8 @@ pub struct Settings {
     pub search_binary: bool,
     #[serde(default)]
     pub editor_path: String,
-}
-
-impl Settings {
-    fn new() -> Self {
-        Self {
-            number_of_threads: 0,
-            follow_symlink: false,
-            search_binary: false,
-            editor_path: String::new(),
-        }
-    }
+    #[serde(default)]
+    pub style_color: StyleColor,
 }
 
 pub struct SettingsWindow {
@@ -84,12 +86,21 @@ impl SettingsWindow {
     pub fn new() -> Self {
         let mut path = current_dir().unwrap_or(PathBuf::from(""));
         path.push(SETTING_FILE_NAME);
-        Self { path, settings: Settings::new(), opened: false }
+        Self { path, settings: Settings::default(), opened: false }
+    }
+
+    fn update_style(style_color: StyleColor) {
+        match style_color {
+            StyleColor::Dark => unsafe { sys::igStyleColorsDark(std::ptr::null_mut()) },
+            StyleColor::Light => unsafe { sys::igStyleColorsLight(std::ptr::null_mut()) },
+            StyleColor::Classic => unsafe { sys::igStyleColorsClassic(std::ptr::null_mut()) },
+        };
     }
 
     pub fn load_from_file(path: PathBuf) -> Result<Self> {
         let content = fs::read_to_string(path.as_path())?;
         let settings: Settings = serde_json::from_str(&content)?;
+        Self::update_style(settings.style_color);
         Ok(Self { path, settings, opened: false })
     }
 
@@ -145,6 +156,21 @@ impl SettingsWindow {
                 ui.table_setup_column_with(TableColumnSetup { name: "##labels", flags: TableColumnFlags::WIDTH_FIXED, init_width_or_weight: 0.0, user_id: Id::default() });
                 ui.table_setup_column_with(TableColumnSetup { name: "##widgets", flags: TableColumnFlags::WIDTH_STRETCH, init_width_or_weight: 0.0, user_id: Id::default() });
                 ui.table_next_row();
+
+                ui.table_next_column();
+                ui.text("Style: ");
+                ui.table_next_column();
+                if ui.radio_button("Dark", &mut self.settings.style_color, StyleColor::Dark) {
+                    Self::update_style(self.settings.style_color);
+                }
+                ui.same_line();
+                if ui.radio_button("Light", &mut self.settings.style_color, StyleColor::Light) {
+                    Self::update_style(self.settings.style_color);
+                }
+                ui.same_line();
+                if ui.radio_button("Classic", &mut self.settings.style_color, StyleColor::Classic) {
+                    Self::update_style(self.settings.style_color);
+                }
 
                 ui.table_next_column();
                 ui.text("Number of threads: ");
