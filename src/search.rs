@@ -245,20 +245,26 @@ impl SearchConfig {
 
     pub fn workers(&self) -> Vec<SearchWorker> {
         let mut workers = Vec::with_capacity(self.queries.len());
-        if let Some((first, remaining)) = self.queries.split_first() {
-            if let Ok(worker) = first.search_worker(true) {
+
+        let mut it = self.queries.iter().filter(|query| !query.query.is_empty());
+
+        // We need at least 1 worker which find the line numbers
+        if let Some(worker) = it.next() {
+            if let Ok(worker) = worker.search_worker(true) {
                 workers.push(worker);
             } else {
                 println!("Couldn't build the workers");
                 return workers;
             }
+        } else {
+            return workers;
+        }
 
-            for query in remaining.iter() {
-                if let Ok(worker) = query.search_worker(false) {
-                    workers.push(worker);
-                } else {
-                    println!("Failed to create a worker for query '{}'", query.query);
-                }
+        while let Some(query) = it.next() {
+            if let Ok(worker) = query.search_worker(false) {
+                workers.push(worker);
+            } else {
+                println!("Failed to create a worker for query '{}'", query.query);
             }
         }
 

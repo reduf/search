@@ -191,7 +191,7 @@ fn search_parallel(tab: &mut SearchTab, settings: &Settings) {
 
     let workers = tab.config.workers();
     if workers.is_empty() {
-        println!("Can't execute without any workers");
+        // Simply erasing the matches.
         return;
     }
 
