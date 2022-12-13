@@ -343,15 +343,30 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
             ui.table_next_column();
             ui.text("Paths:");
             ui.table_next_column();
-            ui.input_text("##paths", &mut tab.config.paths)
+            if ui
+                .input_text("##paths", &mut tab.config.paths)
                 .enter_returns_true(true)
-                .build();
+                .build()
+            {
+                // Keep the focus in the search input making it easier to iterate.
+                ui.set_keyboard_focus_here_with_offset(FocusedWidget::Previous);
+                search = true;
+            }
             show_help(ui, help::PATHS_USAGE);
 
             ui.table_next_column();
             ui.text("Patterns:");
             ui.table_next_column();
-            ui.input_text("##globs", &mut tab.config.globs).hint("*.txt *.cpp").build();
+            if ui
+                .input_text("##globs", &mut tab.config.globs)
+                .enter_returns_true(true)
+                .hint("*.txt *.cpp")
+                .build()
+            {
+                search = true;
+                // Keep the focus in the search input making it easier to iterate.
+                ui.set_keyboard_focus_here_with_offset(FocusedWidget::Previous);
+            }
             show_help(ui, help::GLOBS_USAGE);
 
             let queries = std::mem::replace(&mut tab.config.queries, vec![]);
