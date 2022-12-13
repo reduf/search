@@ -10,18 +10,13 @@ mod settings;
 mod support;
 
 use glium::glutin::event::VirtualKeyCode;
-use ignore::{WalkBuilder, WalkState};
 use imgui::*;
 use std::{
     collections::{HashSet, VecDeque},
     process::Child,
     rc::Rc,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        mpsc, Arc,
-    },
-    time::{Duration, Instant},
-    thread,
+    sync::mpsc::TryRecvError,
+    time::Duration,
 };
 
 use crate::{
@@ -55,7 +50,7 @@ impl UiSearchEntry {
 pub struct SearchTab {
     config: SearchConfig,
     results: Vec<UiSearchEntry>,
-    pending_search: Option<SearchFuture>,
+    pending_search: Option<PendingSearch>,
     file_searched: usize,
     file_searched_with_results: usize,
     search_duration: Duration,
@@ -99,9 +94,9 @@ impl SearchTab {
     }
 
     fn cancel_search(&mut self, clear_results: bool) {
-        if let Some(future) = self.pending_search.as_mut() {
-            future.quit.store(true, Ordering::Relaxed);
-            self.search_duration = future.start_time.elapsed();
+        if let Some(pending) = self.pending_search.as_mut() {
+            pending.signal_stop();
+            self.search_duration = pending.elapsed();
         }
 
         self.pending_search = None;
@@ -128,9 +123,9 @@ impl SearchTab {
 
     fn update_pending_search(&mut self) {
         let mut is_done = false;
-        if let Some(future) = self.pending_search.as_mut() {
+        if let Some(pending) = self.pending_search.as_mut() {
             loop {
-                match future.rx.try_recv() {
+                match pending.try_recv() {
                     Ok(result) => {
                         self.file_searched += 1;
                         if !result.entries.is_empty() {
@@ -138,10 +133,10 @@ impl SearchTab {
                             Self::save_results(&mut self.results, result);
                         }
                     },
-                    Err(mpsc::TryRecvError::Empty) => break,
-                    Err(mpsc::TryRecvError::Disconnected) => {
+                    Err(TryRecvError::Empty) => break,
+                    Err(TryRecvError::Disconnected) => {
                         is_done = true;
-                        self.search_duration = future.start_time.elapsed();
+                        self.search_duration = pending.elapsed();
                         break;
                     }
                 }
@@ -158,8 +153,8 @@ impl SearchTab {
     }
 
     fn search_duration(&self) -> Duration {
-        if let Some(future) = &self.pending_search {
-            future.start_time.elapsed()
+        if let Some(pending) = &self.pending_search {
+            pending.elapsed()
         } else {
             self.search_duration
         }
@@ -172,88 +167,11 @@ pub struct SearchTabs {
     set_selected_tab: Option<usize>,
 }
 
-struct SearchFuture {
-    rx: mpsc::Receiver<SearchResult>,
-    quit: Arc<AtomicBool>,
-    start_time: Instant,
-}
-
 fn search_parallel(tab: &mut SearchTab, settings: &Settings) {
     tab.cancel_search(true);
-
-    let (tx, rx) = mpsc::channel();
-    let quit = Arc::new(AtomicBool::new(false));
-    tab.pending_search = Some(SearchFuture {
-        rx,
-        quit: quit.clone(),
-        start_time: Instant::now(),
-    });
-
-    let workers = tab.config.workers();
-    if workers.is_empty() {
-        // Simply erasing the matches.
-        return;
+    if let Ok(pending) = search::spawn_search(&tab.config, settings.search_binary, settings.number_of_threads as usize) {
+        tab.pending_search = Some(pending);
     }
-
-    let mut builder = if let Some((first, remaining)) = tab.config.paths().split_first() {
-        let mut builder = WalkBuilder::new(first);
-        for path in remaining {
-            builder.add(path);
-        }
-        builder
-    } else {
-        println!("Can't search with no path");
-        return;
-    };
-
-    builder.overrides(tab.config.overrides());
-
-    let threads = if settings.number_of_threads == 0 {
-        thread::available_parallelism().map(|value| value.get()).unwrap_or(2)
-    } else {
-        settings.number_of_threads as usize
-    };
-
-    let search_binary = settings.search_binary;
-    let walker = builder.threads(threads).build_parallel();
-
-    std::thread::spawn(move || {
-        walker.run(|| {
-            let tx = tx.clone();
-            let quit = quit.clone();
-
-            let mut workers = workers.clone();
-
-            Box::new(move |result| {
-                if quit.load(Ordering::Relaxed) {
-                    return WalkState::Quit;
-                }
-
-                let entry = if let Ok(entry) = result {
-                    entry
-                } else {
-                    return WalkState::Continue;
-                };
-
-                if let Some(file_type) = entry.file_type() {
-                    if !file_type.is_file() {
-                        return WalkState::Continue;
-                    }
-                } else {
-                    return WalkState::Continue;
-                };
-
-                if let Some(result) = workers[0].search_path(entry, search_binary) {
-                    return match tx.send(result) {
-                        Ok(_) => WalkState::Continue,
-                        Err(_) => WalkState::Quit,
-                    };
-                } else {
-                    return WalkState::Continue;
-                };
-            })
-        });
-    });
 }
 
 fn cwd() -> String {

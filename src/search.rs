@@ -1,17 +1,21 @@
-use anyhow::{Result};
+use anyhow::{bail, Result};
 use grep::{
     matcher::Matcher,
     regex::{RegexMatcher, RegexMatcherBuilder},
     searcher::{self, BinaryDetection, Searcher, SearcherBuilder, SinkMatch},
 };
-use ignore::{overrides::{Override, OverrideBuilder}};
+use ignore::{
+    WalkBuilder, WalkState,
+    overrides::{Override, OverrideBuilder}
+};
 use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc, Arc,
+        mpsc::{self, TryRecvError}, Arc,
     },
     time::{Duration, Instant},
+    thread,
 };
 use regex;
 
@@ -85,6 +89,10 @@ impl PendingSearch {
 
     pub fn elapsed(&self) -> Duration {
         self.start_time.elapsed()
+    }
+
+    pub fn try_recv(&self) -> std::result::Result<SearchResult, TryRecvError> {
+        self.rx.try_recv()
     }
 }
 
@@ -272,6 +280,77 @@ impl SearchConfig {
     }
 }
 
-pub fn search(config: &SearchConfig) -> PendingSearch {
-    unimplemented!();
+pub fn spawn_search(
+    config: &SearchConfig,
+    search_binary: bool,
+    number_of_threads: usize,
+) -> Result<PendingSearch> {
+    let (tx, rx) = mpsc::channel();
+    let pending_search = PendingSearch::new(rx);
+
+    let workers = config.workers();
+    if workers.is_empty() {
+        bail!("No workers, search is not possible");
+    }
+
+    let mut builder = if let Some((first, remaining)) = config.paths().split_first() {
+        let mut builder = WalkBuilder::new(first);
+        for path in remaining {
+            builder.add(path);
+        }
+        builder
+    } else {
+        bail!("Can't search with no path");
+    };
+
+    builder.overrides(config.overrides());
+
+    let threads = if number_of_threads == 0 {
+        thread::available_parallelism().map(|value| value.get()).unwrap_or(2)
+    } else {
+        number_of_threads as usize
+    };
+
+    let walker = builder.threads(threads).build_parallel();
+
+    let quit = pending_search.quit.clone();
+    std::thread::spawn(move || {
+        walker.run(|| {
+            let tx = tx.clone();
+            let quit = quit.clone();
+
+            let mut workers = workers.clone();
+
+            Box::new(move |result| {
+                if quit.load(Ordering::Relaxed) {
+                    return WalkState::Quit;
+                }
+
+                let entry = if let Ok(entry) = result {
+                    entry
+                } else {
+                    return WalkState::Continue;
+                };
+
+                if let Some(file_type) = entry.file_type() {
+                    if !file_type.is_file() {
+                        return WalkState::Continue;
+                    }
+                } else {
+                    return WalkState::Continue;
+                };
+
+                if let Some(result) = workers[0].search_path(entry, search_binary) {
+                    return match tx.send(result) {
+                        Ok(_) => WalkState::Continue,
+                        Err(_) => WalkState::Quit,
+                    };
+                } else {
+                    return WalkState::Continue;
+                };
+            })
+        });
+    });
+
+    return Ok(pending_search);
 }
