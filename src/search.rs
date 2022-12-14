@@ -21,7 +21,7 @@ use regex;
 
 pub struct SearchResultEntry {
     pub line_number: u64,
-    pub text: String,
+    pub bytes: Vec<u8>,
     pub matches: Vec<(usize, usize)>,
 }
 
@@ -56,11 +56,11 @@ impl searcher::Sink for SearchSink<'_, '_> {
             at = matche.end();
         }
 
-        let text = String::from_utf8_lossy(mat.bytes()).into_owned();
+        let bytes = mat.bytes().to_vec();
         let result = SearchResultEntry {
             line_number: mat.line_number().unwrap(),
-            text: text,
-            matches: matches,
+            bytes,
+            matches,
         };
 
         self.results.push(result);

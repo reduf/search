@@ -31,7 +31,7 @@ pub struct UiSearchEntry {
     pub selected: bool,
     pub path: Rc<String>,
     pub line_number: u64,
-    pub text: String,
+    pub bytes: Vec<u8>,
     pub matches: Vec<(usize, usize)>,
 }
 
@@ -41,7 +41,7 @@ impl UiSearchEntry {
             selected: false,
             path,
             line_number: entry.line_number,
-            text: entry.text,
+            bytes: entry.bytes,
             matches: entry.matches,
         }
     }
@@ -220,17 +220,26 @@ fn draw_menu(ui: &Ui, keep_running: &mut bool, state: &mut SearchTabs, settings:
     }
 }
 
+fn draw_text_from_cow(ui: &Ui, color: Option<[f32; 4]>, text: std::borrow::Cow<'_, str>) {
+    use std::borrow::Cow;
+    let _style = color.map(|color| ui.push_style_color(StyleColor::Text, color));
+    match text {
+        Cow::Borrowed(text) => ui.text(text),
+        Cow::Owned(text) => ui.text(text),
+    }
+}
+
 fn draw_result(ui: &Ui, result: &UiSearchEntry) {
     const COLOR_RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
     let mut printed = 0;
     for (start, end) in result.matches.iter().map(|&val| val) {
-        ui.text(result.text.get(printed..start).unwrap_or("<invalid utf8>"));
+        draw_text_from_cow(ui, None, String::from_utf8_lossy(&result.bytes[printed..start]));
         ui.same_line_with_spacing(0.0, 0.0);
-        ui.text_colored(COLOR_RED, result.text.get(start..end).unwrap_or("<invalid utf8>"));
+        draw_text_from_cow(ui, Some(COLOR_RED), String::from_utf8_lossy(&result.bytes[start..end]));
         ui.same_line_with_spacing(0.0, 0.0);
         printed = end;
     }
-    ui.text(result.text.get(printed..).unwrap_or("<invalid utf8>"));
+    draw_text_from_cow(ui, None, String::from_utf8_lossy(&result.bytes[printed..]));
 }
 
 fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, settings: &Settings) {
