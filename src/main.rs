@@ -184,7 +184,13 @@ fn cwd() -> String {
         .unwrap_or(String::from("./"))
 }
 
-fn draw_menu(ui: &Ui, keep_running: &mut bool, state: &mut SearchTabs, settings: &mut SettingsWindow) {
+fn draw_menu(
+    ui: &Ui,
+    keep_running: &mut bool,
+    state: &mut SearchTabs,
+    settings: &mut SettingsWindow,
+    hotkeys: &mut HotkeysWindow
+) {
     if let Some(menu) = ui.begin_menu("File") {
         if ui.menu_item_config("New Tab").shortcut("CTRL+T").build() {
             state.tabs.push(SearchTab::from_context(cwd()));
@@ -213,7 +219,10 @@ fn draw_menu(ui: &Ui, keep_running: &mut bool, state: &mut SearchTabs, settings:
     }
 
     if let Some(menu) = ui.begin_menu("Help") {
-        ui.menu_item_config("Hotkeys").shortcut("F1").build();
+        if ui.menu_item_config("Hotkeys").shortcut("F1").build() {
+            hotkeys.toggle_open();
+        }
+
         ui.separator();
         ui.menu_item_config("About...").build();
         menu.end();
@@ -598,7 +607,7 @@ fn main() {
             }
 
             if let Some(_) = ui.begin_menu_bar() {
-                draw_menu(ui, keep_running, &mut state, &mut settings);
+                draw_menu(ui, keep_running, &mut state, &mut settings, &mut hotkeys);
             }
 
             let tab_flags = TabBarFlags::REORDERABLE | TabBarFlags::AUTO_SELECT_NEW_TABS;
