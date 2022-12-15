@@ -12,7 +12,7 @@ mod support;
 use glium::glutin::event::VirtualKeyCode;
 use imgui::*;
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::VecDeque,
     process::Child,
     rc::Rc,
     sync::mpsc::TryRecvError,
@@ -54,8 +54,8 @@ pub struct SearchTab {
     file_searched: usize,
     file_searched_with_results: usize,
     search_duration: Duration,
-    selected_rows: HashSet<usize>,
-    last_selected_row: usize,
+    last_focused_row: Option<usize>,
+    last_selected_row: Option<usize>,
 }
 
 impl SearchTab {
@@ -75,8 +75,8 @@ impl SearchTab {
             file_searched: 0,
             file_searched_with_results: 0,
             search_duration: Duration::from_secs(0),
-            selected_rows: HashSet::new(),
-            last_selected_row: 0,
+            last_focused_row: None,
+            last_selected_row: None,
         }
     }
 
@@ -88,8 +88,8 @@ impl SearchTab {
             file_searched: 0,
             file_searched_with_results: 0,
             search_duration: Duration::from_secs(0),
-            selected_rows: HashSet::new(),
-            last_selected_row: 0,
+            last_focused_row: None,
+            last_selected_row: None,
         }
     }
 
@@ -106,6 +106,8 @@ impl SearchTab {
             self.file_searched = 0;
             self.search_duration = Duration::from_secs(0);
             self.file_searched_with_results = 0;
+            self.last_focused_row = None;
+            self.last_selected_row = None;
         }
     }
 
@@ -395,45 +397,16 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
                             .selected(tab.results[row_id].selected)
                             .build()
                         {
-                            if !ui.io().key_ctrl {
-                                // clear selected
-                                let selected_rows = std::mem::replace(&mut tab.selected_rows, HashSet::new());
-                                for selected_id in selected_rows.into_iter() {
-                                    if let Some(entry) = tab.results.get_mut(selected_id) {
-                                        entry.selected = false;
-                                    }
-                                }
-                            }
-
-                            if ui.io().key_shift {
-                                // Select everything in between `last_selected_row` and clicked row.
-                                let first = std::cmp::min(row_id, tab.last_selected_row);
-                                let last = std::cmp::max(row_id, tab.last_selected_row);
-                                for idx in first..=last {
-                                    if idx != row_id {
-                                        if tab.results[idx].selected {
-                                            tab.selected_rows.remove(&idx);
-                                        } else {
-                                            tab.selected_rows.insert(idx);
-                                        }
-                                        tab.results[idx].selected = !tab.results[idx].selected;
-                                    } else {
-                                        tab.results[idx].selected = true;
-                                        tab.selected_rows.insert(idx);
-                                    }
-                                }
-                                // We don't update the `last_selected_row` when shift is pressed.
-                            } else {
-                                if tab.results[row_id].selected {
-                                    tab.selected_rows.remove(&row_id);
-                                } else {
-                                    tab.selected_rows.insert(row_id);
-                                }
-
-                                tab.last_selected_row = row_id;
+                            if let Some(last_selected_row) = tab.last_selected_row {
+                                tab.results[last_selected_row].selected = false;
                             }
 
                             tab.results[row_id].selected = !tab.results[row_id].selected;
+                            tab.last_selected_row = Some(row_id);
+                        }
+
+                        if ui.is_item_focused() {
+                            tab.last_focused_row = Some(row_id);
                         }
 
                         ui.table_next_column();
@@ -563,19 +536,17 @@ fn main() {
             if ui.is_key_index_released(VirtualKeyCode::F4 as i32) {
                 if let Some(tab) = state.tabs.get(state.selected_tab) {
                     if !settings.settings.editor_path.is_empty() {
-                        for selected_id in &tab.selected_rows {
-                            if let Some(entry) = tab.results.get(*selected_id) {
-                                let command = build_command(
-                                    &settings.settings.editor_path,
-                                    entry.path.as_ref().clone(),
-                                    entry.line_number as usize,
-                                );
+                        if let Some(last_focused_row) = tab.last_focused_row {
+                            let command = build_command(
+                                &settings.settings.editor_path,
+                                tab.results[last_focused_row].path.as_ref().clone(),
+                                tab.results[last_focused_row].line_number as usize,
+                            );
 
-                                if let Ok(command) = command {
-                                    commands.push_back(command);
-                                } else {
-                                    println!("Invalid editor '{}'", settings.settings.editor_path);
-                                }
+                            if let Ok(command) = command {
+                                commands.push_back(command);
+                            } else {
+                                println!("Invalid editor '{}'", settings.settings.editor_path);
                             }
                         }
                     } else {
