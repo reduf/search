@@ -158,6 +158,17 @@ impl SettingsWindow {
                 ui.table_next_row();
 
                 ui.table_next_column();
+                ui.text("Path: ");
+                ui.table_next_column();
+                let mut path_as_str = self.path.to_string_lossy().into_owned();
+                ui.input_text("##path", &mut path_as_str).read_only(true).build();
+
+                ui.table_next_column();
+                ui.separator();
+                ui.table_next_column();
+                ui.separator();
+
+                ui.table_next_column();
                 ui.text("Style: ");
                 ui.table_next_column();
                 if ui.radio_button("Dark", &mut self.settings.style_color, StyleColor::Dark) {
