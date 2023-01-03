@@ -17,7 +17,6 @@ pub struct System {
     pub imgui: Context,
     pub platform: WinitPlatform,
     pub renderer: Renderer,
-    pub font_size: f32,
 }
 
 pub fn init(title: &str) -> System {
@@ -60,17 +59,10 @@ pub fn init(title: &str) -> System {
         platform.attach_window(imgui.io_mut(), window, dpi_mode);
     }
 
-    // Fixed font size. Note imgui_winit_support uses "logical
-    // pixels", which are physical pixels scaled by the devices
-    // scaling factor. Meaning, 13.0 pixels should look the same size
-    // on two different screens, and thus we do not need to scale this
-    // value (as the scaling is handled by winit)
-    let font_size = 15.0;
-
     imgui.fonts().add_font(&[
         FontSource::TtfData {
-            data: include_bytes!("../resources/Roboto-Regular.ttf"),
-            size_pixels: font_size,
+            data: include_bytes!("../resources/Lucon.ttf"),
+            size_pixels: 12.0,
             config: Some(FontConfig {
                 // As imgui-glium-renderer isn't gamma-correct with
                 // it's font rendering, we apply an arbitrary
@@ -86,7 +78,7 @@ pub fn init(title: &str) -> System {
         },
         FontSource::TtfData {
             data: include_bytes!("../resources/mplus-1p-regular.ttf"),
-            size_pixels: font_size,
+            size_pixels: 15.0,
             config: Some(FontConfig {
                 // Oversampling font helps improve text rendering at
                 // expense of larger font atlas texture.
@@ -107,7 +99,6 @@ pub fn init(title: &str) -> System {
         imgui,
         platform,
         renderer,
-        font_size,
     }
 }
 
