@@ -377,11 +377,12 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
             let clip = ListClipper::new(tab.results.len() as i32);
             let mut tok = clip.begin(ui);
 
-            let flags = TableFlags::REORDERABLE | TableFlags::RESIZABLE | TableFlags::SIZING_STRETCH_PROP;
+            let flags = TableFlags::REORDERABLE | TableFlags::RESIZABLE | TableFlags::SIZING_FIXED_FIT;
             if let Some(_t) = ui.begin_table_with_flags("table-headers", 3, flags) {
-                ui.table_setup_column_with(TableColumnSetup { name: "File", flags: TableColumnFlags::empty(), init_width_or_weight: 0.5, user_id: Id::default() });
-                ui.table_setup_column_with(TableColumnSetup { name: "Line", flags: TableColumnFlags::empty(), init_width_or_weight: 0.1, user_id: Id::default() });
-                ui.table_setup_column_with(TableColumnSetup { name: "Text", flags: TableColumnFlags::empty(), init_width_or_weight: 0.0, user_id: Id::default() });
+                let avail_width = ui.content_region_avail()[0];
+                ui.table_setup_column_with(TableColumnSetup { name: "File", flags: TableColumnFlags::WIDTH_FIXED, init_width_or_weight: 0.5 * avail_width, user_id: Id::default() });
+                ui.table_setup_column_with(TableColumnSetup { name: "Line", flags: TableColumnFlags::WIDTH_FIXED, init_width_or_weight: 0.1 * avail_width, user_id: Id::default() });
+                ui.table_setup_column_with(TableColumnSetup { name: "Text", flags: TableColumnFlags::WIDTH_STRETCH, init_width_or_weight: 0.0, user_id: Id::default() });
                 ui.table_headers_row();
 
                 while tok.step() {
