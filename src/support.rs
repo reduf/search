@@ -68,7 +68,7 @@ pub fn init(title: &str) -> System {
                 // it's font rendering, we apply an arbitrary
                 // multiplier to make the font a bit "heavier". With
                 // default imgui-glow-renderer this is unnecessary.
-                rasterizer_multiply: 1.5,
+                rasterizer_multiply: 1.2,
                 // Oversampling font helps improve text rendering at
                 // expense of larger font atlas texture.
                 oversample_h: 4,
