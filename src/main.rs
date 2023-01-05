@@ -56,6 +56,7 @@ pub struct SearchTab {
     search_duration: Duration,
     last_focused_row: Option<usize>,
     last_selected_row: Option<usize>,
+    error_message: Option<String>,
 }
 
 impl SearchTab {
@@ -77,6 +78,7 @@ impl SearchTab {
             search_duration: Duration::from_secs(0),
             last_focused_row: None,
             last_selected_row: None,
+            error_message: None,
         }
     }
 
@@ -90,6 +92,7 @@ impl SearchTab {
             search_duration: Duration::from_secs(0),
             last_focused_row: None,
             last_selected_row: None,
+            error_message: None,
         }
     }
 
@@ -354,18 +357,36 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
             tab.config.queries.push(SearchQuery::new());
         }
 
-        ui.same_line();
         if ui.button("Search") {
             search = true;
         }
 
-        if search {
-            search_parallel(&mut tab, settings);
-        }
-
         ui.same_line();
+        let color = ui.push_style_color(StyleColor::Button, [1.0, 0.0, 0.0, 1.0]);
         if ui.button("Cancel") {
             tab.cancel_search(false);
+        }
+        color.end();
+
+        if let Some(error_message) = &tab.error_message {
+            ui.same_line();
+
+            let yellow = [1.0, 0.875, 0.0, 1.0];
+            let cursor_pos = ui.cursor_pos();
+            ui.get_window_draw_list().add_rect_filled_multicolor(
+                cursor_pos,
+                [ui.content_region_max()[0], cursor_pos[1] + ui.text_line_height_with_spacing()],
+                yellow,
+                yellow,
+                yellow,
+                yellow,
+            );
+
+            ui.text_colored([0.0, 0.0, 0.0, 1.0], error_message);
+        }
+
+        if search {
+            search_parallel(&mut tab, settings);
         }
 
         // @Enhancement: Shouldn't calculate that every frame.
@@ -534,7 +555,7 @@ fn main() {
             }
 
             if ui.is_key_index_released(VirtualKeyCode::F4 as i32) {
-                if let Some(tab) = state.tabs.get(state.selected_tab) {
+                if let Some(tab) = state.tabs.get_mut(state.selected_tab) {
                     if !settings.settings.editor_path.is_empty() {
                         if let Some(last_focused_row) = tab.last_focused_row {
                             let command = build_command(
@@ -550,7 +571,9 @@ fn main() {
                             }
                         }
                     } else {
-                        println!("Editor not configured");
+                        let error = String::from("Editor not configured");
+                        println!("{}", error);
+                        tab.error_message = Some(error);
                     }
                 }
             }
