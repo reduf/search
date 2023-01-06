@@ -60,17 +60,16 @@ pub struct SearchTab {
 }
 
 impl SearchTab {
-    pub fn new() -> Self {
-        Self::create(String::from("/"))
-    }
-
     pub fn from_context(context: String) -> Self {
-        Self::create(context)
+        Self {
+            config: SearchConfig::with_paths(context),
+            ..Self::default()
+        }
     }
 
-    pub fn clone_for_tab(&self) -> Self {
+    pub fn default() -> Self {
         Self {
-            config: self.config.clone(),
+            config: SearchConfig::default(),
             results: Vec::new(),
             pending_search: None,
             file_searched: 0,
@@ -82,17 +81,10 @@ impl SearchTab {
         }
     }
 
-    fn create(context: String) -> Self {
-        SearchTab {
-            config: SearchConfig::with_paths(context),
-            results: Vec::new(),
-            pending_search: None,
-            file_searched: 0,
-            file_searched_with_results: 0,
-            search_duration: Duration::from_secs(0),
-            last_focused_row: None,
-            last_selected_row: None,
-            error_message: None,
+    pub fn clone_for_tab(&self) -> Self {
+        Self {
+            config: self.config.clone(),
+            ..Self::default()
         }
     }
 

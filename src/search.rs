@@ -220,6 +220,10 @@ pub struct SearchConfig {
 }
 
 impl SearchConfig {
+    pub fn default() -> Self {
+        Self { paths: String::new(), globs: String::new(), queries: Vec::new() }
+    }
+
     pub fn with_paths(paths: String) -> Self {
         let queries = vec![SearchQuery::new()];
         Self { paths, globs: String::new(), queries }
