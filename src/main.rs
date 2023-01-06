@@ -103,6 +103,7 @@ impl SearchTab {
             self.file_searched_with_results = 0;
             self.last_focused_row = None;
             self.last_selected_row = None;
+            self.error_message = None;
         }
     }
 
@@ -166,6 +167,21 @@ pub struct SearchTabs {
 
 fn search_parallel(tab: &mut SearchTab, settings: &Settings) {
     tab.cancel_search(true);
+
+    let non_existing_paths: Vec<String> = tab
+        .config
+        .paths()
+        .into_iter()
+        .filter(|path| !path.exists())
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
+
+    if !non_existing_paths.is_empty() {
+        let error = format!("Can't open {}", non_existing_paths.join(", "));
+        println!("{}", error);
+        tab.error_message = Some(error);
+    }
+
     if let Ok(pending) = search::spawn_search(&tab.config, settings.search_binary, settings.number_of_threads as usize) {
         tab.pending_search = Some(pending);
     }
