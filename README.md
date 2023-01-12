@@ -54,3 +54,6 @@ The reason boils down that it doesn't seem necessary and would affect
 portability, reliability and accuracy. Note that, doing twice the exact
 same search could still give drastically different information, due to
 OS level caching.
+
+### Icons
+- The magnifier icon used as icon is from https://icons8.com/ and can be found [here](https://icons8.com/icon/p3miLroKw4iR/magnifying-glass-tilted-left).

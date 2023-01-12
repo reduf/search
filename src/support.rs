@@ -1,8 +1,9 @@
-use glium::glutin;
 use glium::glutin::event::{Event, WindowEvent};
 use glium::glutin::event_loop::{ControlFlow, EventLoop};
-use glium::glutin::window::WindowBuilder;
+use glium::glutin::window::{Icon, WindowBuilder};
+use glium::glutin;
 use glium::{Display, Surface};
+use image::GenericImageView;
 use imgui::{ConfigFlags, Context, FontConfig, FontGlyphRanges, FontSource, Ui};
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -19,6 +20,17 @@ pub struct System {
     pub renderer: Renderer,
 }
 
+fn load_icon() -> Option<Icon> {
+    let buffer = include_bytes!("../resources/icons8-magnifying-glass-tilted-left-96.ico");
+    if let Ok(img) = image::load_from_memory(buffer) {
+        let (width, height) = img.dimensions();
+        let rgba_bytes = img.into_rgba8().into_vec();
+        Icon::from_rgba(rgba_bytes, width, height).ok()
+    } else {
+        None
+    }
+}
+
 pub fn init(title: &str) -> System {
     let title = match Path::new(&title).file_name() {
         Some(file_name) => file_name.to_str().unwrap(),
@@ -28,7 +40,8 @@ pub fn init(title: &str) -> System {
     let context = glutin::ContextBuilder::new().with_vsync(true);
     let builder = WindowBuilder::new()
         .with_title(title.to_owned())
-        .with_inner_size(glutin::dpi::LogicalSize::new(1024f64, 768f64));
+        .with_inner_size(glutin::dpi::LogicalSize::new(1024f64, 768f64))
+        .with_window_icon(load_icon());
     let display =
         Display::new(builder, context, &event_loop).expect("Failed to initialize display");
 
