@@ -38,7 +38,7 @@ pub struct SettingsWindow {
     pub settings: Settings,
 }
 
-const SETTING_FILE_NAME: &str = "search-settings.json";
+const SETTING_FILE_NAME: &str = "search.conf";
 
 fn current_dir() -> Result<PathBuf> {
     let mut builder = std::env::current_exe().map_err(|err| {
