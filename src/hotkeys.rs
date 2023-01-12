@@ -43,6 +43,7 @@ impl HotkeysWindow {
             ("Ctrl+W", "Close current tab."),
             ("Ctrl+PageUp", "Rotate current tab to the left."),
             ("Ctrl+PageDown", "Rotate current tab to the right."),
+            ("Ctrl+F", "Focus query input."),
             ("F4", "Open selected files with your configured editor."),
         ];
 

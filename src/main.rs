@@ -57,6 +57,7 @@ pub struct SearchTab {
     last_focused_row: Option<usize>,
     last_selected_row: Option<usize>,
     error_message: Option<String>,
+    focus_query_input: bool,
 }
 
 impl SearchTab {
@@ -78,6 +79,7 @@ impl SearchTab {
             last_focused_row: None,
             last_selected_row: None,
             error_message: None,
+            focus_query_input: false,
         }
     }
 
@@ -327,6 +329,12 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
                 // How can we calculate that dynamically such that the button fits in the window?
                 ui.table_next_column();
                 let _w = ui.push_item_width(450.0);
+
+                if tab.focus_query_input {
+                    ui.set_keyboard_focus_here_with_offset(FocusedWidget::Next);
+                    tab.focus_query_input = false;
+                }
+
                 if ui
                     .input_text("##search", &mut query.query)
                     .hint("(press enter to search)")
@@ -579,6 +587,14 @@ fn main() {
 
             if ui.is_key_index_released(VirtualKeyCode::F1 as i32) {
                 hotkeys.toggle_open();
+            }
+
+            if ui.is_key_index_released(VirtualKeyCode::F as i32) {
+                if key_ctrl {
+                    if let Some(tab) = state.tabs.get_mut(state.selected_tab) {
+                        tab.focus_query_input = true;
+                    }
+                }
             }
 
             if let Some(mut child) = pending_command.take() {
