@@ -347,16 +347,7 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
                 ui.checkbox("Invert match", &mut query.invert_match);
                 ui.same_line();
 
-                let add = ui.button("+");
-                ui.same_line();
-
-                if !ui.button("-") {
-                    tab.config.queries.push(query);
-                }
-
-                if add {
-                    tab.config.queries.push(SearchQuery::new());
-                }
+                tab.config.queries.push(query);
             }
         }
 
