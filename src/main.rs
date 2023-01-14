@@ -325,6 +325,7 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
                 let _stack = ui.push_id_usize(idx);
 
                 ui.table_next_column();
+                ui.text("Text:");
 
                 // How can we calculate that dynamically such that the button fits in the window?
                 ui.table_next_column();
