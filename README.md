@@ -30,7 +30,7 @@ Complex regexes can probably allow you to find accurately everything, but
 personally I rather use the complex of "pipes" to find something. With grep,
 it could be something like:
 ```
-> grep -iRF main src/ | rg -viF fn
+> grep -iRF main src/ | grep -viF fn
 ```
 This command does a initial recursive search for the literal string "main"
 starting in directory "src/" and search this result to find every lines, not
