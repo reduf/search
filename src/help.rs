@@ -40,7 +40,12 @@ pub const SETTINGS_SEARCH_BINARY_HELP: &str = indoc! { "
     ripgrep will stop searching the file. Usually, NUL bytes occur in the beginning
     of most binary files. If a NUL byte occurs after a match, then ripgrep will
     still stop searching the rest of the file, but a warning will be printed.
+"};
 
+pub const SETTINGS_INTERACTIVE_SEARCH_HELP: &str = indoc! { "
+    Enabling this flag will cause search to only be started interactively,
+    triggered with enter or by clicking the search button. Disabling this flag
+    will cause search to start every time the text input is updated.
 "};
 
 pub const SETTINGS_EDITOR_HELP: &str = indoc! { "

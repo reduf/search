@@ -30,6 +30,8 @@ pub struct Settings {
     pub editor_path: String,
     #[serde(default)]
     pub style_color: StyleColor,
+    #[serde(default)]
+    pub interactive_search: bool,
 }
 
 pub struct SettingsWindow {
@@ -198,6 +200,12 @@ impl SettingsWindow {
                 ui.table_next_column();
                 ui.checkbox("##binary", &mut self.settings.search_binary);
                 help::show_help(ui, help::SETTINGS_SEARCH_BINARY_HELP);
+
+                ui.table_next_column();
+                ui.text("Interactive search: ");
+                ui.table_next_column();
+                ui.checkbox("##interactive-search", &mut self.settings.interactive_search);
+                help::show_help(ui, help::SETTINGS_INTERACTIVE_SEARCH_HELP);
 
                 ui.table_next_column();
                 ui.text("Editor Path: ");

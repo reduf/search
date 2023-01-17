@@ -316,7 +316,7 @@ fn draw_tab(
             ui.table_next_column();
             if ui
                 .input_text("##globs", &mut tab.config.globs)
-                .enter_returns_true(true)
+                .enter_returns_true(settings.interactive_search)
                 .hint("*.txt *.cpp")
                 .build()
             {
@@ -346,7 +346,7 @@ fn draw_tab(
                 if ui
                     .input_text("##search", &mut query.query)
                     .hint("(press enter to search)")
-                    .enter_returns_true(true)
+                    .enter_returns_true(settings.interactive_search)
                     .build()
                 {
                     search = true;
