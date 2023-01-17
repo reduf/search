@@ -529,6 +529,7 @@ fn main() {
             .resizable(false)
             .collapsible(false)
             .title_bar(false)
+            .bring_to_front_on_focus(false)
             .menu_bar(true);
 
         window.build(|| {
