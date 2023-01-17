@@ -13,7 +13,7 @@ use glium::glutin::event::VirtualKeyCode;
 use imgui::*;
 use std::{
     collections::VecDeque,
-    process::Child,
+    process::{Child, Command},
     rc::Rc,
     sync::mpsc::TryRecvError,
     time::Duration,
@@ -265,7 +265,14 @@ fn draw_result(ui: &Ui, result: &UiSearchEntry) {
     draw_text_from_cow(ui, None, String::from_utf8_lossy(&result.bytes[printed..]));
 }
 
-fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, settings: &Settings) {
+fn draw_tab(
+    ui: &Ui,
+    state: &mut SearchTabs,
+    tab_id: usize,
+    mut tab: SearchTab,
+    settings: &Settings,
+    commands: &mut VecDeque<Command>,
+) {
     tab.update_pending_search();
 
     let mut flags = TabItemFlags::empty();
@@ -424,14 +431,29 @@ fn draw_tab(ui: &Ui, state: &mut SearchTabs, tab_id: usize, mut tab: SearchTab, 
                             .selectable_config(tab.results[row_id].path.as_ref())
                             .span_all_columns(true)
                             .selected(tab.results[row_id].selected)
+                            .allow_double_click(true)
                             .build()
                         {
-                            if let Some(last_selected_row) = tab.last_selected_row {
-                                tab.results[last_selected_row].selected = false;
-                            }
+                            if ui.is_mouse_double_clicked(MouseButton::Left) {
+                                let command = build_command(
+                                    &settings.editor_path,
+                                    tab.results[row_id].path.as_ref().clone(),
+                                    tab.results[row_id].line_number as usize,
+                                );
 
-                            tab.results[row_id].selected = !tab.results[row_id].selected;
-                            tab.last_selected_row = Some(row_id);
+                                if let Ok(command) = command {
+                                    commands.push_back(command);
+                                } else {
+                                    println!("Invalid editor '{}'", settings.editor_path);
+                                }
+                            } else {
+                                if let Some(last_selected_row) = tab.last_selected_row {
+                                    tab.results[last_selected_row].selected = false;
+                                }
+
+                                tab.results[row_id].selected = !tab.results[row_id].selected;
+                                tab.last_selected_row = Some(row_id);
+                            }
                         }
 
                         if ui.is_item_focused() {
@@ -485,7 +507,7 @@ fn main() {
     let mut hotkeys = HotkeysWindow::new();
 
     let mut pending_command: Option<Child> = None;
-    let mut commands = VecDeque::new();
+    let mut commands: VecDeque<Command> = VecDeque::new();
     let mut state = SearchTabs {
         tabs: Vec::new(),
         selected_tab: 0,
@@ -625,7 +647,7 @@ fn main() {
                 let tabs = std::mem::replace(&mut state.tabs, vec![]);
                 for (tab_id, tab) in tabs.into_iter().enumerate() {
                     let _stack = ui.push_id_usize(tab_id);
-                    draw_tab(ui, &mut state, tab_id, tab, &settings.settings);
+                    draw_tab(ui, &mut state, tab_id, tab, &settings.settings, &mut commands);
                 }
             });
         });
