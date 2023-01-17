@@ -34,6 +34,20 @@ pub struct Settings {
     pub interactive_search: bool,
 }
 
+impl Settings {
+    fn default_editor_path() -> &'static str {
+        return "C:\\Windows\\notepad.exe {file}";
+    }
+
+    pub fn editor_path(&self) -> &str {
+        if self.editor_path.is_empty() {
+            return Self::default_editor_path();
+        } else {
+            return self.editor_path.as_str();
+        }
+    }
+}
+
 pub struct SettingsWindow {
     path: PathBuf,
     opened: bool,
@@ -210,7 +224,7 @@ impl SettingsWindow {
                 ui.table_next_column();
                 ui.text("Editor Path: ");
                 ui.table_next_column();
-                ui.input_text("##editor", &mut self.settings.editor_path).build();
+                ui.input_text("##editor", &mut self.settings.editor_path).hint(Settings::default_editor_path()).build();
                 help::show_help(ui, help::SETTINGS_EDITOR_HELP);
             }
         });

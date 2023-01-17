@@ -436,7 +436,7 @@ fn draw_tab(
                         {
                             if ui.is_mouse_double_clicked(MouseButton::Left) {
                                 let command = build_command(
-                                    &settings.editor_path,
+                                    settings.editor_path(),
                                     tab.results[row_id].path.as_ref().clone(),
                                     tab.results[row_id].line_number as usize,
                                 );
@@ -444,7 +444,7 @@ fn draw_tab(
                                 if let Ok(command) = command {
                                     commands.push_back(command);
                                 } else {
-                                    println!("Invalid editor '{}'", settings.editor_path);
+                                    println!("Invalid editor '{}'", settings.editor_path());
                                 }
                             } else {
                                 if let Some(last_selected_row) = tab.last_selected_row {
@@ -586,10 +586,10 @@ fn main() {
 
             if ui.is_key_index_released(VirtualKeyCode::F4 as i32) {
                 if let Some(tab) = state.tabs.get_mut(state.selected_tab) {
-                    if !settings.settings.editor_path.is_empty() {
+                    if !settings.settings.editor_path().is_empty() {
                         if let Some(last_focused_row) = tab.last_focused_row {
                             let command = build_command(
-                                &settings.settings.editor_path,
+                                settings.settings.editor_path(),
                                 tab.results[last_focused_row].path.as_ref().clone(),
                                 tab.results[last_focused_row].line_number as usize,
                             );
@@ -597,7 +597,7 @@ fn main() {
                             if let Ok(command) = command {
                                 commands.push_back(command);
                             } else {
-                                println!("Invalid editor '{}'", settings.settings.editor_path);
+                                println!("Invalid editor '{}'", settings.settings.editor_path());
                             }
                         }
                     } else {
