@@ -234,7 +234,7 @@ fn draw_menu(
     }
 
     if let Some(menu) = ui.begin_menu("Help") {
-        ui.text("Version: 0.2.0\nHomepage: https://github.com/reduf/search");
+        ui.text("Version: 0.3.0\nHomepage: https://github.com/reduf/search");
         ui.separator();
         if ui.menu_item_config("Hotkeys").shortcut("F1").build() {
             hotkeys.toggle_open();
