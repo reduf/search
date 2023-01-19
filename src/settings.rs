@@ -36,7 +36,10 @@ pub struct Settings {
 
 impl Settings {
     fn default_editor_path() -> &'static str {
+        #[cfg(windows)]
         return "C:\\Windows\\notepad.exe {file}";
+        #[cfg(not(windows))]
+        return "nano +{line} {file}";
     }
 
     pub fn editor_path(&self) -> &str {
