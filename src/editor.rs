@@ -1,5 +1,5 @@
-use anyhow::{bail, Result};
 use crate::args;
+use anyhow::{bail, Result};
 use std::{collections::HashMap, process::Command};
 
 fn replace(argument: &str, replacements: &HashMap<String, String>) -> Result<String> {
@@ -15,17 +15,17 @@ fn replace(argument: &str, replacements: &HashMap<String, String>) -> Result<Str
                     bail!("Can't finish a string with a non-escaped '\\'");
                 }
                 continue;
-            },
+            }
             '{' => {
                 if in_open_brace.is_some() {
                     bail!("Can't have scoped braces");
                 } else {
                     in_open_brace = Some(idx);
                 }
-            },
+            }
             '}' => {
                 if let Some(open_pos) = in_open_brace {
-                    let key = &argument[open_pos+1..idx];
+                    let key = &argument[open_pos + 1..idx];
                     if let Some(replacement) = replacements.get(key) {
                         result.push_str(replacement);
                     } else {
@@ -35,7 +35,7 @@ fn replace(argument: &str, replacements: &HashMap<String, String>) -> Result<Str
                 } else {
                     bail!("Can't have closing brace without opening brace");
                 }
-            },
+            }
             _ => {
                 if in_open_brace.is_none() {
                     result.push(value);
@@ -82,10 +82,7 @@ mod tests {
         replacements.insert(String::from("file"), file.clone());
         replacements.insert(String::from("line"), line.clone());
 
-        assert_eq!(
-            replace("{file}", &replacements).unwrap(),
-            file
-        );
+        assert_eq!(replace("{file}", &replacements).unwrap(), file);
         assert_eq!(
             replace("{file}{line}", &replacements).unwrap(),
             format!("{}{}", file, line)
@@ -99,7 +96,11 @@ mod tests {
             format!("-p={}:{}", file, line)
         );
         assert_eq!(
-            replace(r#"--json-pos=\{"line": {line}, "file": "{file}"\}"#, &replacements).unwrap(),
+            replace(
+                r#"--json-pos=\{"line": {line}, "file": "{file}"\}"#,
+                &replacements
+            )
+            .unwrap(),
             format!(r#"--json-pos={{"line": {}, "file": "{}"}}"#, line, file),
         );
     }

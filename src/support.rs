@@ -1,7 +1,7 @@
+use glium::glutin;
 use glium::glutin::event::{Event, WindowEvent};
 use glium::glutin::event_loop::{ControlFlow, EventLoop};
 use glium::glutin::window::{Icon, WindowBuilder};
-use glium::glutin;
 use glium::{Display, Surface};
 use image::GenericImageView;
 use imgui::{ConfigFlags, Context, FontConfig, FontGlyphRanges, FontSource, Ui};
@@ -127,54 +127,55 @@ impl System {
         } = self;
 
         // Allow us to use PageUp and PageDown to navigate in the result window.
-        imgui.io_mut().config_flags.set(ConfigFlags::NAV_ENABLE_KEYBOARD, true);
+        imgui
+            .io_mut()
+            .config_flags
+            .set(ConfigFlags::NAV_ENABLE_KEYBOARD, true);
 
         let mut last_frame = Instant::now();
-        event_loop.run(move |event, _, control_flow| {
-            match event {
-                Event::NewEvents(_) => {
-                    let now = Instant::now();
-                    imgui.io_mut().update_delta_time(now - last_frame);
-                    last_frame = now;
-                }
-                Event::MainEventsCleared => {
-                    let gl_window = display.gl_window();
-                    platform
-                        .prepare_frame(imgui.io_mut(), gl_window.window())
-                        .expect("Failed to prepare frame");
-                    gl_window.window().request_redraw();
-                }
-                Event::RedrawRequested(_) => {
-                    let ui = imgui.frame();
+        event_loop.run(move |event, _, control_flow| match event {
+            Event::NewEvents(_) => {
+                let now = Instant::now();
+                imgui.io_mut().update_delta_time(now - last_frame);
+                last_frame = now;
+            }
+            Event::MainEventsCleared => {
+                let gl_window = display.gl_window();
+                platform
+                    .prepare_frame(imgui.io_mut(), gl_window.window())
+                    .expect("Failed to prepare frame");
+                gl_window.window().request_redraw();
+            }
+            Event::RedrawRequested(_) => {
+                let ui = imgui.frame();
 
-                    let mut run = true;
-                    run_ui(&mut run, ui);
-                    if !run {
-                        *control_flow = ControlFlow::Exit;
-                    }
+                let mut run = true;
+                run_ui(&mut run, ui);
+                if !run {
+                    *control_flow = ControlFlow::Exit;
+                }
 
-                    let gl_window = display.gl_window();
-                    let mut target = display.draw();
-                    target.clear_color_srgb(1.0, 1.0, 1.0, 1.0);
-                    platform.prepare_render(ui, gl_window.window());
-                    let draw_data = imgui.render();
-                    renderer
-                        .render(&mut target, draw_data)
-                        .expect("Rendering failed");
-                    target.finish().expect("Failed to swap buffers");
-                }
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => *control_flow = ControlFlow::Exit,
-                Event::WindowEvent {
-                    event: WindowEvent::Resized(new_size),
-                    ..
-                } => imgui.io_mut().display_size = [new_size.width as f32, new_size.height as f32],
-                event => {
-                    let gl_window = display.gl_window();
-                    platform.handle_event(imgui.io_mut(), gl_window.window(), &event);
-                }
+                let gl_window = display.gl_window();
+                let mut target = display.draw();
+                target.clear_color_srgb(1.0, 1.0, 1.0, 1.0);
+                platform.prepare_render(ui, gl_window.window());
+                let draw_data = imgui.render();
+                renderer
+                    .render(&mut target, draw_data)
+                    .expect("Rendering failed");
+                target.finish().expect("Failed to swap buffers");
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+            Event::WindowEvent {
+                event: WindowEvent::Resized(new_size),
+                ..
+            } => imgui.io_mut().display_size = [new_size.width as f32, new_size.height as f32],
+            event => {
+                let gl_window = display.gl_window();
+                platform.handle_event(imgui.io_mut(), gl_window.window(), &event);
             }
         });
     }

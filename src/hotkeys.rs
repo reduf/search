@@ -49,9 +49,21 @@ impl HotkeysWindow {
 
         window.build(|| {
             ui.text("Hotkeys");
-            if let Some(_t) = ui.begin_table_with_flags("tab-hotkeys-layout", 2, TableFlags::SIZING_FIXED_FIT) {
-                ui.table_setup_column_with(TableColumnSetup { name: "##hotkeys", flags: TableColumnFlags::WIDTH_FIXED, init_width_or_weight: 0.0, user_id: Id::default() });
-                ui.table_setup_column_with(TableColumnSetup { name: "##description", flags: TableColumnFlags::WIDTH_STRETCH, init_width_or_weight: 0.0, user_id: Id::default() });
+            if let Some(_t) =
+                ui.begin_table_with_flags("tab-hotkeys-layout", 2, TableFlags::SIZING_FIXED_FIT)
+            {
+                ui.table_setup_column_with(TableColumnSetup {
+                    name: "##hotkeys",
+                    flags: TableColumnFlags::WIDTH_FIXED,
+                    init_width_or_weight: 0.0,
+                    user_id: Id::default(),
+                });
+                ui.table_setup_column_with(TableColumnSetup {
+                    name: "##description",
+                    flags: TableColumnFlags::WIDTH_STRETCH,
+                    init_width_or_weight: 0.0,
+                    user_id: Id::default(),
+                });
                 ui.table_next_row();
 
                 for (hotkey, help) in &hotkeys {

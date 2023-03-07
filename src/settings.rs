@@ -1,7 +1,7 @@
-use anyhow::{anyhow, bail, Result};
 use crate::help;
+use anyhow::{anyhow, bail, Result};
 use imgui::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -15,7 +15,9 @@ pub enum StyleColor {
 }
 
 impl Default for StyleColor {
-    fn default() -> Self { Self::Dark }
+    fn default() -> Self {
+        Self::Dark
+    }
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -71,7 +73,6 @@ fn current_dir() -> Result<PathBuf> {
 }
 
 pub fn enumerate_setting_paths() -> Result<Vec<PathBuf>> {
-
     let mut builder = current_dir().map_err(|err| {
         println!("Failed to get the executable path, error: {}", err);
         anyhow!("Failed to get the executable path")
@@ -105,7 +106,11 @@ impl SettingsWindow {
     pub fn new() -> Self {
         let mut path = current_dir().unwrap_or(PathBuf::from(""));
         path.push(SETTING_FILE_NAME);
-        Self { path, settings: Settings::default(), opened: false }
+        Self {
+            path,
+            settings: Settings::default(),
+            opened: false,
+        }
     }
 
     fn update_style(style_color: StyleColor) {
@@ -120,7 +125,11 @@ impl SettingsWindow {
         let content = fs::read_to_string(path.as_path())?;
         let settings: Settings = serde_json::from_str(&content)?;
         Self::update_style(settings.style_color);
-        Ok(Self { path, settings, opened: false })
+        Ok(Self {
+            path,
+            settings,
+            opened: false,
+        })
     }
 
     pub fn save_to_file(&self, path: &Path) -> Result<()> {
@@ -146,7 +155,10 @@ impl SettingsWindow {
         println!("Saving settings to '{}'...", self.path.to_string_lossy());
         if self.save_to_file(self.path.as_path()).is_err() {
             // We could potentially create a Window with the serialized settings.
-            println!("Failed to save settings to '{}'", self.path.to_string_lossy());
+            println!(
+                "Failed to save settings to '{}'",
+                self.path.to_string_lossy()
+            );
         }
     }
 
@@ -171,16 +183,30 @@ impl SettingsWindow {
             .opened(&mut self.opened);
 
         window.build(|| {
-            if let Some(_t) = ui.begin_table_with_flags("settings-layout", 2, TableFlags::SIZING_FIXED_FIT) {
-                ui.table_setup_column_with(TableColumnSetup { name: "##labels", flags: TableColumnFlags::WIDTH_FIXED, init_width_or_weight: 0.0, user_id: Id::default() });
-                ui.table_setup_column_with(TableColumnSetup { name: "##widgets", flags: TableColumnFlags::WIDTH_STRETCH, init_width_or_weight: 0.0, user_id: Id::default() });
+            if let Some(_t) =
+                ui.begin_table_with_flags("settings-layout", 2, TableFlags::SIZING_FIXED_FIT)
+            {
+                ui.table_setup_column_with(TableColumnSetup {
+                    name: "##labels",
+                    flags: TableColumnFlags::WIDTH_FIXED,
+                    init_width_or_weight: 0.0,
+                    user_id: Id::default(),
+                });
+                ui.table_setup_column_with(TableColumnSetup {
+                    name: "##widgets",
+                    flags: TableColumnFlags::WIDTH_STRETCH,
+                    init_width_or_weight: 0.0,
+                    user_id: Id::default(),
+                });
                 ui.table_next_row();
 
                 ui.table_next_column();
                 ui.text("Path: ");
                 ui.table_next_column();
                 let mut path_as_str = self.path.to_string_lossy().into_owned();
-                ui.input_text("##path", &mut path_as_str).read_only(true).build();
+                ui.input_text("##path", &mut path_as_str)
+                    .read_only(true)
+                    .build();
 
                 ui.table_next_column();
                 ui.separator();
@@ -198,14 +224,19 @@ impl SettingsWindow {
                     Self::update_style(self.settings.style_color);
                 }
                 ui.same_line();
-                if ui.radio_button("Classic", &mut self.settings.style_color, StyleColor::Classic) {
+                if ui.radio_button(
+                    "Classic",
+                    &mut self.settings.style_color,
+                    StyleColor::Classic,
+                ) {
                     Self::update_style(self.settings.style_color);
                 }
 
                 ui.table_next_column();
                 ui.text("Number of threads: ");
                 ui.table_next_column();
-                ui.input_int("##threads", &mut self.settings.number_of_threads).build();
+                ui.input_int("##threads", &mut self.settings.number_of_threads)
+                    .build();
 
                 ui.table_next_column();
                 ui.text("Follow Symlinks: ");
@@ -221,13 +252,18 @@ impl SettingsWindow {
                 ui.table_next_column();
                 ui.text("Interactive search: ");
                 ui.table_next_column();
-                ui.checkbox("##interactive-search", &mut self.settings.interactive_search);
+                ui.checkbox(
+                    "##interactive-search",
+                    &mut self.settings.interactive_search,
+                );
                 help::show_help(ui, help::SETTINGS_INTERACTIVE_SEARCH_HELP);
 
                 ui.table_next_column();
                 ui.text("Editor Path: ");
                 ui.table_next_column();
-                ui.input_text("##editor", &mut self.settings.editor_path).hint(Settings::default_editor_path()).build();
+                ui.input_text("##editor", &mut self.settings.editor_path)
+                    .hint(Settings::default_editor_path())
+                    .build();
                 help::show_help(ui, help::SETTINGS_EDITOR_HELP);
             }
         });

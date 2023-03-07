@@ -5,19 +5,20 @@ use grep::{
     searcher::{self, BinaryDetection, Searcher, SearcherBuilder, SinkMatch},
 };
 use ignore::{
+    overrides::{Override, OverrideBuilder},
     WalkBuilder, WalkState,
-    overrides::{Override, OverrideBuilder}
 };
+use regex;
 use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{self, TryRecvError}, Arc,
+        mpsc::{self, TryRecvError},
+        Arc,
     },
-    time::{Duration, Instant},
     thread,
+    time::{Duration, Instant},
 };
-use regex;
 
 pub struct SearchResultEntry {
     pub line_number: u64,
@@ -51,7 +52,10 @@ impl searcher::Sink for SearchSink<'_, '_> {
         let mut at = 0;
         let mut matches = Vec::new();
         while let Ok(Some(matche)) = self.matcher.find_at(mat.bytes(), at) {
-            assert_eq!(mat.bytes()[matche], mat.bytes()[matche.start()..matche.end()]);
+            assert_eq!(
+                mat.bytes()[matche],
+                mat.bytes()[matche.start()..matche.end()]
+            );
             matches.push((matche.start(), matche.end()));
             at = matche.end();
         }
@@ -80,7 +84,11 @@ impl PendingSearch {
     pub fn new(rx: mpsc::Receiver<SearchResult>) -> Self {
         let quit = Arc::new(AtomicBool::new(false));
         let start_time = Instant::now();
-        Self { rx, quit, start_time: start_time }
+        Self {
+            rx,
+            quit,
+            start_time: start_time,
+        }
     }
 
     pub fn signal_stop(&self) {
@@ -109,7 +117,11 @@ pub struct SearchWorker {
 }
 
 impl SearchWorker {
-    pub fn search_path(&mut self, dir_entry: ignore::DirEntry, search_binary: bool) -> Option<SearchResult> {
+    pub fn search_path(
+        &mut self,
+        dir_entry: ignore::DirEntry,
+        search_binary: bool,
+    ) -> Option<SearchResult> {
         let mut entries = Vec::new();
         let search_sink = SearchSink {
             results: &mut entries,
@@ -221,12 +233,20 @@ pub struct SearchConfig {
 
 impl SearchConfig {
     pub fn default() -> Self {
-        Self { paths: String::new(), globs: String::new(), queries: Vec::new() }
+        Self {
+            paths: String::new(),
+            globs: String::new(),
+            queries: Vec::new(),
+        }
     }
 
     pub fn with_paths(paths: String) -> Self {
         let queries = vec![SearchQuery::new()];
-        Self { paths, globs: String::new(), queries }
+        Self {
+            paths,
+            globs: String::new(),
+            queries,
+        }
     }
 
     pub fn paths(&self) -> Vec<&Path> {
@@ -310,7 +330,9 @@ pub fn spawn_search(
     builder.overrides(config.overrides());
 
     let threads = if number_of_threads == 0 {
-        thread::available_parallelism().map(|value| value.get()).unwrap_or(2)
+        thread::available_parallelism()
+            .map(|value| value.get())
+            .unwrap_or(2)
     } else {
         number_of_threads as usize
     };

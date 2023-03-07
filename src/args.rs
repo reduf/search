@@ -58,7 +58,13 @@ pub fn parse_args(cmdline: &str) -> Result<Vec<String>> {
 mod tests {
     fn chk(cmdline: &str, expected: &[&'static str]) {
         let calculated = super::parse_args(cmdline).unwrap();
-        assert_eq!(calculated.len(), expected.len(), "  calculated: `{:?}`, expected: `{:?}`\n", calculated, expected);
+        assert_eq!(
+            calculated.len(),
+            expected.len(),
+            "  calculated: `{:?}`, expected: `{:?}`\n",
+            calculated,
+            expected
+        );
         for (calc, expec) in calculated.iter().zip(expected) {
             assert_eq!(&calc.as_str(), expec);
         }
