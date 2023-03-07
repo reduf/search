@@ -171,6 +171,99 @@ impl App {
         };
     }
 
+    pub fn update_input(&mut self, ui: &Ui) {
+        let key_ctrl = ui.io().key_ctrl;
+        let key_shift = ui.io().key_shift;
+
+        if ui.is_key_index_released(VirtualKeyCode::T as i32) && key_ctrl {
+            if key_shift {
+                let new_tab = if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                    tab.clone_for_tab()
+                } else {
+                    SearchTab::from_context(Self::cwd())
+                };
+                self.tabs.push(new_tab);
+            } else {
+                self.tabs.push(SearchTab::from_context(Self::cwd()));
+            }
+        }
+
+        // Detect the hotkey that select the tab to the left.
+        if (key_ctrl && ui.is_key_index_released(VirtualKeyCode::PageUp as i32))
+            || (key_ctrl && key_shift && ui.is_key_index_released(VirtualKeyCode::Tab as i32))
+        {
+            let new_id = if self.selected_tab == 0 {
+                self.tabs.len() - 1
+            } else {
+                self.selected_tab - 1
+            };
+
+            self.set_selected_tab = Some(new_id);
+        }
+
+        // Detect the hotkey that select the tab to the right.
+        if (key_ctrl && ui.is_key_index_released(VirtualKeyCode::PageDown as i32))
+            || (key_ctrl && ui.is_key_index_released(VirtualKeyCode::Tab as i32))
+        {
+            let new_id = (self.selected_tab + 1) % self.tabs.len();
+            self.set_selected_tab = Some(new_id);
+        }
+
+        // Detect the hotkey that select the tab to the right.
+        if key_ctrl && ui.is_key_index_released(VirtualKeyCode::W as i32) {
+            if !self.tabs.is_empty() {
+                self.tabs.drain(self.selected_tab..(self.selected_tab + 1));
+                let modul = std::cmp::max(self.tabs.len(), 1);
+                self.selected_tab = self.selected_tab % modul;
+            }
+        }
+
+        if ui.is_key_index_released(VirtualKeyCode::Escape as i32) {
+            if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                tab.cancel_search(false);
+            }
+        }
+
+        if ui.is_key_index_released(VirtualKeyCode::F4 as i32) {
+            if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                if !self.settings.settings.editor_path().is_empty() {
+                    if let Some(last_focused_row) = tab.last_focused_row {
+                        let command = build_command(
+                            self.settings.settings.editor_path(),
+                            tab.results[last_focused_row].path.as_ref().clone(),
+                            tab.results[last_focused_row].line_number as usize,
+                        );
+
+                        if let Ok(command) = command {
+                            self.commands.push_back(command);
+                        } else {
+                            println!(
+                                "Invalid editor '{}'",
+                                self.settings.settings.editor_path()
+                            );
+                        }
+                    }
+                } else {
+                    let error = String::from("Editor not configured");
+                    println!("{}", error);
+                    tab.error_message = Some(error);
+                }
+            }
+        }
+
+        if ui.is_key_index_released(VirtualKeyCode::F1 as i32) {
+            self.hotkeys.toggle_open();
+        }
+
+        if ui.is_key_index_released(VirtualKeyCode::F as i32) {
+            if key_ctrl {
+                if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                    tab.focus_query_input = true;
+                }
+            }
+        }
+    }
+
     fn cwd() -> String {
         std::env::current_dir()
             .map(|path| {
@@ -545,11 +638,12 @@ impl App {
         }
     }
 
-    pub fn update(&mut self, keep_running: &mut bool, ui: &mut Ui) {
+    pub fn update(&mut self, keep_running: &mut bool, ui: &Ui) {
         let window_size = ui.io().display_size;
 
         self.settings.draw_settings(ui);
         self.hotkeys.draw_hotkeys_help(ui);
+        self.update_input(ui);
 
         let window = ui
             .window("Search##main")
@@ -563,97 +657,6 @@ impl App {
             .menu_bar(true);
 
         window.build(|| {
-            let key_ctrl = ui.io().key_ctrl;
-            let key_shift = ui.io().key_shift;
-
-            if ui.is_key_index_released(VirtualKeyCode::T as i32) && key_ctrl {
-                if key_shift {
-                    let new_tab = if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
-                        tab.clone_for_tab()
-                    } else {
-                        SearchTab::from_context(Self::cwd())
-                    };
-                    self.tabs.push(new_tab);
-                } else {
-                    self.tabs.push(SearchTab::from_context(Self::cwd()));
-                }
-            }
-
-            // Detect the hotkey that select the tab to the left.
-            if (key_ctrl && ui.is_key_index_released(VirtualKeyCode::PageUp as i32))
-                || (key_ctrl && key_shift && ui.is_key_index_released(VirtualKeyCode::Tab as i32))
-            {
-                let new_id = if self.selected_tab == 0 {
-                    self.tabs.len() - 1
-                } else {
-                    self.selected_tab - 1
-                };
-
-                self.set_selected_tab = Some(new_id);
-            }
-
-            // Detect the hotkey that select the tab to the right.
-            if (key_ctrl && ui.is_key_index_released(VirtualKeyCode::PageDown as i32))
-                || (key_ctrl && ui.is_key_index_released(VirtualKeyCode::Tab as i32))
-            {
-                let new_id = (self.selected_tab + 1) % self.tabs.len();
-                self.set_selected_tab = Some(new_id);
-            }
-
-            // Detect the hotkey that select the tab to the right.
-            if key_ctrl && ui.is_key_index_released(VirtualKeyCode::W as i32) {
-                if !self.tabs.is_empty() {
-                    self.tabs.drain(self.selected_tab..(self.selected_tab + 1));
-                    let modul = std::cmp::max(self.tabs.len(), 1);
-                    self.selected_tab = self.selected_tab % modul;
-                }
-            }
-
-            if ui.is_key_index_released(VirtualKeyCode::Escape as i32) {
-                if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
-                    tab.cancel_search(false);
-                }
-            }
-
-            if ui.is_key_index_released(VirtualKeyCode::F4 as i32) {
-                if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
-                    if !self.settings.settings.editor_path().is_empty() {
-                        if let Some(last_focused_row) = tab.last_focused_row {
-                            let command = build_command(
-                                self.settings.settings.editor_path(),
-                                tab.results[last_focused_row].path.as_ref().clone(),
-                                tab.results[last_focused_row].line_number as usize,
-                            );
-
-                            if let Ok(command) = command {
-                                self.commands.push_back(command);
-                            } else {
-                                println!(
-                                    "Invalid editor '{}'",
-                                    self.settings.settings.editor_path()
-                                );
-                            }
-                        }
-                    } else {
-                        let error = String::from("Editor not configured");
-                        println!("{}", error);
-                        tab.error_message = Some(error);
-                    }
-                }
-            }
-
-            if ui.is_key_index_released(VirtualKeyCode::F1 as i32) {
-                self.hotkeys.toggle_open();
-            }
-
-            if ui.is_key_index_released(VirtualKeyCode::F as i32) {
-                if key_ctrl {
-                    if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
-                        tab.focus_query_input = true;
-                    }
-                }
-            }
-
             if let Some(mut child) = self.pending_command.take() {
                 if let Ok(None) = child.try_wait() {
                     self.pending_command = Some(child);
