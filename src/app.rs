@@ -720,6 +720,33 @@ impl App {
                                         tab.last_focused_row = Some(row_id);
                                     }
 
+                                    if ui.is_mouse_clicked(MouseButton::Right) && ui.is_item_hovered() {
+                                        ui.open_popup("row-context");
+                                    }
+
+                                    if let Some(_) = ui.begin_popup("row-context") {
+                                        if ui.menu_item_config("Open").shortcut("F4").build() {
+                                            let command = build_command(
+                                                self.settings.settings.editor_path(),
+                                                tab.results[row_id].path.as_ref().clone(),
+                                                tab.results[row_id].line_number as usize,
+                                            );
+
+                                            if let Ok(command) = command {
+                                                self.commands.push_back(command);
+                                            } else {
+                                                println!(
+                                                    "Invalid editor '{}'",
+                                                    self.settings.settings.editor_path()
+                                                );
+                                            }
+                                        }
+
+                                        if ui.menu_item_config("Copy Path").build() {
+                                            ui.set_clipboard_text(tab.results[row_id].path.as_ref());
+                                        }
+                                    }
+
                                     ui.table_next_column();
                                     ui.text(format!("{}", tab.results[row_id].line_number));
 
