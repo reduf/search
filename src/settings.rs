@@ -20,6 +20,29 @@ impl Default for StyleColor {
     }
 }
 
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct BoolTrue(pub bool);
+
+impl Default for BoolTrue {
+    fn default() -> Self {
+        Self(true)
+    }
+}
+
+impl std::fmt::Display for BoolTrue {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::ops::Not for BoolTrue {
+    type Output = bool;
+    fn not(self) -> Self::Output {
+        !self.0
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct Settings {
     #[serde(default)]
@@ -33,7 +56,7 @@ pub struct Settings {
     #[serde(default)]
     pub style_color: StyleColor,
     #[serde(default)]
-    pub interactive_search: bool,
+    pub incremental_search: BoolTrue,
 }
 
 impl Settings {
@@ -250,13 +273,13 @@ impl SettingsWindow {
                 help::show_help(ui, help::SETTINGS_SEARCH_BINARY_HELP);
 
                 ui.table_next_column();
-                ui.text("Interactive search: ");
+                ui.text("Incremental search: ");
                 ui.table_next_column();
                 ui.checkbox(
-                    "##interactive-search",
-                    &mut self.settings.interactive_search,
+                    "##incremental-search",
+                    &mut self.settings.incremental_search.0,
                 );
-                help::show_help(ui, help::SETTINGS_INTERACTIVE_SEARCH_HELP);
+                help::show_help(ui, help::SETTINGS_INCREMENTAL_SEARCH_HELP);
 
                 ui.table_next_column();
                 ui.text("Editor Path: ");

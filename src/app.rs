@@ -550,7 +550,7 @@ impl App {
                     ui.table_next_column();
                     if ui
                         .input_text("##globs", &mut tab.config.globs)
-                        .enter_returns_true(self.settings.settings.interactive_search)
+                        .enter_returns_true(!self.settings.settings.incremental_search)
                         .hint("*.txt *.cpp")
                         .build()
                     {
@@ -580,7 +580,7 @@ impl App {
                         if ui
                             .input_text("##search", &mut query.query)
                             .hint("(press enter to search)")
-                            .enter_returns_true(self.settings.settings.interactive_search)
+                            .enter_returns_true(!self.settings.settings.incremental_search)
                             .build()
                         {
                             search = true;

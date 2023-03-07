@@ -38,10 +38,10 @@ pub const SETTINGS_SEARCH_BINARY_HELP: &str = indoc! {"
     of most binary files.
 "};
 
-pub const SETTINGS_INTERACTIVE_SEARCH_HELP: &str = indoc! {"
-    Enabling this flag will cause search to only be started interactively,
-    triggered with enter or by clicking the search button. Disabling this flag
-    will cause search to start every time the text input is updated.
+pub const SETTINGS_INCREMENTAL_SEARCH_HELP: &str = indoc! {"
+    Enabling this flag causes search to start every time the text input is updated.
+    Disabling this flag causes search to only be started interactively, triggered
+    with enter or by clicking the search button.
 "};
 
 pub const SETTINGS_EDITOR_HELP: &str = indoc! {"
