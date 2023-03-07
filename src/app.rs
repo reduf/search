@@ -1,4 +1,7 @@
-use glium::glutin::event::VirtualKeyCode;
+use glium::glutin::{
+    event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    window::Window,
+};
 use imgui::*;
 use std::{
     collections::VecDeque,
@@ -18,6 +21,10 @@ pub struct App {
     selected_tab: usize,
     set_selected_tab: Option<usize>,
     pending_command: Option<Child>,
+    shift_pressed: bool,
+    ctrl_pressed: bool,
+    alt_pressed: bool,
+    super_pressed: bool,
 }
 
 pub struct UiSearchEntry {
@@ -168,100 +175,216 @@ impl App {
             selected_tab: 0,
             set_selected_tab: None,
             pending_command: None,
+            shift_pressed: false,
+            ctrl_pressed: false,
+            alt_pressed: false,
+            super_pressed: false,
         };
     }
 
-    pub fn update_input(&mut self, ui: &Ui) {
-        let key_ctrl = ui.io().key_ctrl;
-        let key_shift = ui.io().key_shift;
+    fn handle_key_modifier(&mut self, key: VirtualKeyCode, down: bool) -> bool {
+        if key == VirtualKeyCode::LShift || key == VirtualKeyCode::RShift {
+            self.shift_pressed = down;
+        } else if key == VirtualKeyCode::LControl || key == VirtualKeyCode::RControl {
+            self.ctrl_pressed = down;
+        } else if key == VirtualKeyCode::LAlt || key == VirtualKeyCode::RAlt {
+            self.alt_pressed = down;
+        } else if key == VirtualKeyCode::LWin || key == VirtualKeyCode::RWin {
+            self.super_pressed = down;
+        } else {
+            return false;
+        }
 
-        if ui.is_key_index_released(VirtualKeyCode::T as i32) && key_ctrl {
-            if key_shift {
-                let new_tab = if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
-                    tab.clone_for_tab()
+        return true;
+    }
+
+    pub fn handle_event<T>(&mut self, window: &Window, event: &Event<T>) -> bool {
+        match *event {
+            Event::WindowEvent {
+                window_id,
+                ref event,
+            } if window_id == window.id() => self.handle_window_event(event),
+            // Track key release events outside our window. If we don't do this,
+            // we might never see the release event if some other window gets focus.
+            Event::DeviceEvent {
+                event:
+                    DeviceEvent::Key(KeyboardInput {
+                        state: ElementState::Released,
+                        virtual_keycode: Some(key),
+                        ..
+                    }),
+                ..
+            } => {
+                self.handle_key_modifier(key, false);
+                return false;
+            }
+            _ => false,
+        }
+    }
+
+    fn handle_window_event(&mut self, event: &WindowEvent) -> bool {
+        match *event {
+            WindowEvent::ModifiersChanged(modifiers) => {
+                // We need to track modifiers separately because some system like macOS, will
+                // not reliably send modifier states during certain events like ScreenCapture.
+                // Gotta let the people show off their pretty imgui widgets!
+                self.shift_pressed = modifiers.shift();
+                self.ctrl_pressed = modifiers.ctrl();
+                self.alt_pressed = modifiers.alt();
+                self.super_pressed = modifiers.logo();
+                return false;
+            }
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        virtual_keycode: Some(key),
+                        state,
+                        ..
+                    },
+                ..
+            } => {
+                let pressed = state == ElementState::Pressed;
+                if self.handle_key_modifier(key, pressed) {
+                    return false;
+                }
+
+                // Process keys
+                return self.handle_key_event(key, state);
+            }
+            _ => return false,
+        }
+    }
+
+    fn handle_key_event(&mut self, key: VirtualKeyCode, state: ElementState) -> bool {
+        let key_ctrl = self.ctrl_pressed;
+        let key_shift = self.shift_pressed;
+
+        if key == VirtualKeyCode::T && key_ctrl {
+            if state == ElementState::Pressed {
+                if key_shift {
+                    let new_tab = if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                        tab.clone_for_tab()
+                    } else {
+                        SearchTab::from_context(Self::cwd())
+                    };
+                    self.tabs.push(new_tab);
                 } else {
-                    SearchTab::from_context(Self::cwd())
-                };
-                self.tabs.push(new_tab);
-            } else {
-                self.tabs.push(SearchTab::from_context(Self::cwd()));
-            }
-        }
-
-        // Detect the hotkey that select the tab to the left.
-        if (key_ctrl && ui.is_key_index_released(VirtualKeyCode::PageUp as i32))
-            || (key_ctrl && key_shift && ui.is_key_index_released(VirtualKeyCode::Tab as i32))
-        {
-            let new_id = if self.selected_tab == 0 {
-                self.tabs.len() - 1
-            } else {
-                self.selected_tab - 1
-            };
-
-            self.set_selected_tab = Some(new_id);
-        }
-
-        // Detect the hotkey that select the tab to the right.
-        if (key_ctrl && ui.is_key_index_released(VirtualKeyCode::PageDown as i32))
-            || (key_ctrl && ui.is_key_index_released(VirtualKeyCode::Tab as i32))
-        {
-            let new_id = (self.selected_tab + 1) % self.tabs.len();
-            self.set_selected_tab = Some(new_id);
-        }
-
-        // Detect the hotkey that select the tab to the right.
-        if key_ctrl && ui.is_key_index_released(VirtualKeyCode::W as i32) {
-            if !self.tabs.is_empty() {
-                self.tabs.drain(self.selected_tab..(self.selected_tab + 1));
-                let modul = std::cmp::max(self.tabs.len(), 1);
-                self.selected_tab = self.selected_tab % modul;
-            }
-        }
-
-        if ui.is_key_index_released(VirtualKeyCode::Escape as i32) {
-            if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
-                tab.cancel_search(false);
-            }
-        }
-
-        if ui.is_key_index_released(VirtualKeyCode::F4 as i32) {
-            if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
-                if !self.settings.settings.editor_path().is_empty() {
-                    if let Some(last_focused_row) = tab.last_focused_row {
-                        let command = build_command(
-                            self.settings.settings.editor_path(),
-                            tab.results[last_focused_row].path.as_ref().clone(),
-                            tab.results[last_focused_row].line_number as usize,
-                        );
-
-                        if let Ok(command) = command {
-                            self.commands.push_back(command);
-                        } else {
-                            println!(
-                                "Invalid editor '{}'",
-                                self.settings.settings.editor_path()
-                            );
-                        }
-                    }
-                } else {
-                    let error = String::from("Editor not configured");
-                    println!("{}", error);
-                    tab.error_message = Some(error);
+                    self.tabs.push(SearchTab::from_context(Self::cwd()));
                 }
             }
+
+            return true;
         }
 
-        if ui.is_key_index_released(VirtualKeyCode::F1 as i32) {
-            self.hotkeys.toggle_open();
+        // Rotate left with "PageUp".
+        if key == VirtualKeyCode::PageUp && key_ctrl {
+            if state == ElementState::Released {
+                let new_id = if self.selected_tab == 0 {
+                    self.tabs.len() - 1
+                } else {
+                    self.selected_tab - 1
+                };
+                self.set_selected_tab = Some(new_id);
+            }
+            return true;
         }
 
-        if ui.is_key_index_released(VirtualKeyCode::F as i32) {
-            if key_ctrl {
+        // Detect the right that select the tab to the right.
+        if key == VirtualKeyCode::PageDown && key_ctrl {
+            if state == ElementState::Released {
+                let new_id = (self.selected_tab + 1) % self.tabs.len();
+                self.set_selected_tab = Some(new_id);
+            }
+            return true;
+        }
+
+        // Rotate left or right with with "Tab".
+        if key == VirtualKeyCode::Tab && key_ctrl {
+            if state == ElementState::Released {
+                if key_shift {
+                    let new_id = if self.selected_tab == 0 {
+                        self.tabs.len() - 1
+                    } else {
+                        self.selected_tab - 1
+                    };
+                    self.set_selected_tab = Some(new_id);
+                } else {
+                    let new_id = (self.selected_tab + 1) % self.tabs.len();
+                    self.set_selected_tab = Some(new_id);
+                }
+            }
+            return true;
+        }
+
+        // Detect the hotkey that select the tab to the right.
+        if key == VirtualKeyCode::W && key_ctrl {
+            if state == ElementState::Released {
+                if !self.tabs.is_empty() {
+                    self.tabs.drain(self.selected_tab..(self.selected_tab + 1));
+                    let modul = std::cmp::max(self.tabs.len(), 1);
+                    self.selected_tab = self.selected_tab % modul;
+                }
+            }
+            return true;
+        }
+
+        // Cancel search if there is a search pending.
+        if key == VirtualKeyCode::Escape {
+            if state == ElementState::Released {
+                if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                    tab.cancel_search(false);
+                }
+            }
+            return true;
+        }
+
+        // Open selected element in the editor.
+        if key == VirtualKeyCode::F4 {
+            if state == ElementState::Pressed {
+                if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                    if !self.settings.settings.editor_path().is_empty() {
+                        if let Some(last_focused_row) = tab.last_focused_row {
+                            let command = build_command(
+                                self.settings.settings.editor_path(),
+                                tab.results[last_focused_row].path.as_ref().clone(),
+                                tab.results[last_focused_row].line_number as usize,
+                            );
+
+                            if let Ok(command) = command {
+                                self.commands.push_back(command);
+                            } else {
+                                println!("Invalid editor '{}'", self.settings.settings.editor_path());
+                            }
+                        }
+                    } else {
+                        let error = String::from("Editor not configured");
+                        println!("{}", error);
+                        tab.error_message = Some(error);
+                    }
+                }
+            }
+            return true;
+        }
+
+        // Toggle the hotkey window.
+        if key == VirtualKeyCode::F1 {
+            if state == ElementState::Pressed {
+                self.hotkeys.toggle_open();
+            }
+            return true;
+        }
+
+        // Focus the search window.
+        if key == VirtualKeyCode::F && key_ctrl {
+            if state == ElementState::Pressed {
                 if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
                     tab.focus_query_input = true;
                 }
             }
+            return true;
         }
+
+        return false;
     }
 
     fn cwd() -> String {
@@ -643,7 +766,6 @@ impl App {
 
         self.settings.draw_settings(ui);
         self.hotkeys.draw_hotkeys_help(ui);
-        self.update_input(ui);
 
         let window = ui
             .window("Search##main")

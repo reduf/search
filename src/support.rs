@@ -4,13 +4,13 @@ use glium::glutin::event_loop::{ControlFlow, EventLoop};
 use glium::glutin::window::{Icon, WindowBuilder};
 use glium::{Display, Surface};
 use image::GenericImageView;
-use imgui::{ConfigFlags, Context, FontConfig, FontGlyphRanges, FontSource, Ui};
+use imgui::{ConfigFlags, Context, FontConfig, FontGlyphRanges, FontSource};
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use std::path::Path;
 use std::time::Instant;
 
-use crate::clipboard;
+use crate::{app::App, clipboard};
 
 pub struct System {
     pub event_loop: EventLoop<()>,
@@ -116,7 +116,7 @@ pub fn init(title: &str) -> System {
 }
 
 impl System {
-    pub fn main_loop<F: FnMut(&mut bool, &mut Ui) + 'static>(self, mut run_ui: F) {
+    pub fn main_loop(self, mut app: App) {
         let System {
             event_loop,
             display,
@@ -150,7 +150,7 @@ impl System {
                 let ui = imgui.frame();
 
                 let mut run = true;
-                run_ui(&mut run, ui);
+                app.update(&mut run, ui);
                 if !run {
                     *control_flow = ControlFlow::Exit;
                 }
@@ -175,7 +175,9 @@ impl System {
             } => imgui.io_mut().display_size = [new_size.width as f32, new_size.height as f32],
             event => {
                 let gl_window = display.gl_window();
-                platform.handle_event(imgui.io_mut(), gl_window.window(), &event);
+                if !app.handle_event(gl_window.window(), &event) {
+                    platform.handle_event(imgui.io_mut(), gl_window.window(), &event);
+                }
             }
         });
     }
