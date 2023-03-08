@@ -240,11 +240,11 @@ impl SearchConfig {
         }
     }
 
-    pub fn with_paths(paths: String) -> Self {
+    pub fn with_paths_and_patterns(paths: String, patterns: String) -> Self {
         let queries = vec![SearchQuery::new()];
         Self {
             paths,
-            globs: String::new(),
+            globs: patterns,
             queries,
         }
     }

@@ -126,9 +126,7 @@ pub fn enumerate_setting_paths() -> Result<Vec<PathBuf>> {
 }
 
 impl SettingsWindow {
-    pub fn new() -> Self {
-        let mut path = current_dir().unwrap_or(PathBuf::from(""));
-        path.push(SETTING_FILE_NAME);
+    pub fn new(path: PathBuf) -> Self {
         Self {
             path,
             settings: Settings::default(),
@@ -144,7 +142,7 @@ impl SettingsWindow {
         };
     }
 
-    pub fn load_from_file(path: PathBuf) -> Result<Self> {
+    fn try_load_from_file(path: PathBuf) -> Result<Self> {
         let content = fs::read_to_string(path.as_path())?;
         let settings: Settings = serde_json::from_str(&content)?;
         Self::update_style(settings.style_color);
@@ -153,6 +151,12 @@ impl SettingsWindow {
             settings,
             opened: false,
         })
+    }
+
+    pub fn load_from_file(path: PathBuf) -> Self {
+        // @Enhancement:
+        // The clone here, shouldn't be necessary and force a memory allocation and copy.
+        return Self::try_load_from_file(path.clone()).unwrap_or(SettingsWindow::new(path));
     }
 
     pub fn save_to_file(&self, path: &Path) -> Result<()> {
@@ -164,14 +168,18 @@ impl SettingsWindow {
     pub fn open_setting() -> Self {
         if let Ok(paths) = enumerate_setting_paths() {
             for path in paths.into_iter() {
-                if let Ok(settings) = Self::load_from_file(path) {
+                if let Ok(settings) = Self::try_load_from_file(path) {
                     println!("Loaded settings from '{}'", settings.path.to_string_lossy());
                     return settings;
                 }
             }
         }
 
-        return SettingsWindow::new();
+        // When failing to load any settings, we just fallback to the current
+        // directory.
+        let mut path = current_dir().unwrap_or(PathBuf::from(""));
+        path.push(SETTING_FILE_NAME);
+        return SettingsWindow::new(path);
     }
 
     pub fn save_results(&self) {

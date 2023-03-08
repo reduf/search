@@ -13,6 +13,7 @@ winres = "0.1"
 
 [dependencies]
 anyhow = "1.0.66"
+clap = { version = "4.1.8", features = ["derive"] }
 cfg-if = "1.0.0"
 clipboard = "0.5"
 glium = { version = "0.32.1", default-features = true }

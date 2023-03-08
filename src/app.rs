@@ -5,6 +5,7 @@ use glium::glutin::{
 use imgui::*;
 use std::{
     collections::VecDeque,
+    path::PathBuf,
     process::{Child, Command},
     rc::Rc,
     sync::mpsc::TryRecvError,
@@ -14,6 +15,9 @@ use std::{
 use crate::{editor::*, help::*, hotkeys::*, search::*, settings::*};
 
 pub struct App {
+    default_paths: String,
+    default_patterns: String,
+
     settings: SettingsWindow,
     hotkeys: HotkeysWindow,
     commands: VecDeque<Command>,
@@ -61,9 +65,9 @@ pub struct SearchTab {
 }
 
 impl SearchTab {
-    pub fn from_context(context: String) -> Self {
+    pub fn from_context(context: String, patterns: String) -> Self {
         Self {
-            config: SearchConfig::with_paths(context),
+            config: SearchConfig::with_paths_and_patterns(context, patterns),
             ..Self::default()
         }
     }
@@ -161,17 +165,33 @@ impl SearchTab {
     }
 }
 
-pub fn init() -> App {
-    return App::new();
+pub fn init(paths: Option<String>, patterns: Option<String>, config: Option<String>) -> App {
+    return App::new(paths, patterns, config);
 }
 
 impl App {
-    fn new() -> Self {
+    fn new(paths: Option<String>, patterns: Option<String>, config: Option<String>) -> Self {
+        let settings = if let Some(config) = config {
+            SettingsWindow::load_from_file(PathBuf::from(config))
+        } else {
+            SettingsWindow::open_setting()
+        };
+
+        let default_paths = paths.unwrap_or(Self::cwd());
+        let default_patterns = patterns.unwrap_or(String::new());
+
+        let tabs = vec![SearchTab::from_context(
+            default_paths.clone(),
+            default_patterns.clone(),
+        )];
+
         return Self {
-            settings: SettingsWindow::open_setting(),
+            default_paths,
+            default_patterns,
+            settings,
             hotkeys: HotkeysWindow::new(),
             commands: VecDeque::new(),
-            tabs: vec![SearchTab::from_context(Self::cwd())],
+            tabs,
             selected_tab: 0,
             set_selected_tab: None,
             pending_command: None,
@@ -180,6 +200,10 @@ impl App {
             alt_pressed: false,
             super_pressed: false,
         };
+    }
+
+    fn default_search_tab(&self) -> SearchTab {
+        return SearchTab::from_context(self.default_paths.clone(), self.default_patterns.clone());
     }
 
     fn handle_key_modifier(&mut self, key: VirtualKeyCode, down: bool) -> bool {
@@ -265,11 +289,11 @@ impl App {
                     let new_tab = if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
                         tab.clone_for_tab()
                     } else {
-                        SearchTab::from_context(Self::cwd())
+                        self.default_search_tab()
                     };
                     self.tabs.push(new_tab);
                 } else {
-                    self.tabs.push(SearchTab::from_context(Self::cwd()));
+                    self.tabs.push(self.default_search_tab());
                 }
             }
 
@@ -353,7 +377,10 @@ impl App {
                             if let Ok(command) = command {
                                 self.commands.push_back(command);
                             } else {
-                                println!("Invalid editor '{}'", self.settings.settings.editor_path());
+                                println!(
+                                    "Invalid editor '{}'",
+                                    self.settings.settings.editor_path()
+                                );
                             }
                         }
                     } else {
@@ -426,7 +453,7 @@ impl App {
     fn draw_menu(&mut self, ui: &Ui, keep_running: &mut bool) {
         if let Some(menu) = ui.begin_menu("File") {
             if ui.menu_item_config("New Tab").shortcut("CTRL+T").build() {
-                self.tabs.push(SearchTab::from_context(Self::cwd()));
+                self.tabs.push(self.default_search_tab());
             }
 
             ui.menu_item_config("Open...").shortcut("CTRL+O").build();
@@ -720,7 +747,9 @@ impl App {
                                         tab.last_focused_row = Some(row_id);
                                     }
 
-                                    if ui.is_mouse_clicked(MouseButton::Right) && ui.is_item_hovered() {
+                                    if ui.is_mouse_clicked(MouseButton::Right)
+                                        && ui.is_item_hovered()
+                                    {
                                         ui.open_popup("row-context");
                                     }
 
@@ -743,7 +772,9 @@ impl App {
                                         }
 
                                         if ui.menu_item_config("Copy Path").build() {
-                                            ui.set_clipboard_text(tab.results[row_id].path.as_ref());
+                                            ui.set_clipboard_text(
+                                                tab.results[row_id].path.as_ref(),
+                                            );
                                         }
                                     }
 
