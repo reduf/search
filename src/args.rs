@@ -13,12 +13,7 @@ pub fn parse_args(cmdline: &str) -> Result<Vec<String>> {
     while let Some(value) = it.next() {
         if value == '\\' {
             if let Some(escaped_char) = it.next() {
-                let need_escape = match escaped_char {
-                    '"' | '\\' | ' ' | '\t' => true,
-                    _ => false,
-                };
-
-                if !need_escape {
+                if !matches!(escaped_char, '"' | '\\' | ' ' | '\t') {
                     arg_builder.push(value);
                 }
 
@@ -32,7 +27,7 @@ pub fn parse_args(cmdline: &str) -> Result<Vec<String>> {
         } else if value == ' ' || value == '\t' {
             if !in_quote {
                 if !arg_builder.is_empty() || save_empty_arg {
-                    results.push(std::mem::replace(&mut arg_builder, String::new()));
+                    results.push(std::mem::take(&mut arg_builder));
                     save_empty_arg = false;
                 }
             } else {

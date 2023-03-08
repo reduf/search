@@ -177,8 +177,8 @@ impl App {
             SettingsWindow::open_setting()
         };
 
-        let default_paths = paths.unwrap_or(Self::cwd());
-        let default_patterns = patterns.unwrap_or(String::new());
+        let default_paths = paths.unwrap_or_else(Self::cwd);
+        let default_patterns = patterns.unwrap_or_default();
 
         let tabs = vec![SearchTab::from_context(
             default_paths.clone(),
@@ -342,12 +342,10 @@ impl App {
 
         // Detect the hotkey that select the tab to the right.
         if key == VirtualKeyCode::W && key_ctrl {
-            if state == ElementState::Released {
-                if !self.tabs.is_empty() {
-                    self.tabs.drain(self.selected_tab..(self.selected_tab + 1));
-                    let modul = std::cmp::max(self.tabs.len(), 1);
-                    self.selected_tab = self.selected_tab % modul;
-                }
+            if state == ElementState::Released && !self.tabs.is_empty() {
+                self.tabs.drain(self.selected_tab..(self.selected_tab + 1));
+                let modul = std::cmp::max(self.tabs.len(), 1);
+                self.selected_tab %= modul;
             }
             return true;
         }
@@ -419,9 +417,9 @@ impl App {
             .map(|path| {
                 path.into_os_string()
                     .into_string()
-                    .unwrap_or(String::from("./"))
+                    .unwrap_or_else(|_| String::from("./"))
             })
-            .unwrap_or(String::from("./"))
+            .unwrap_or_else(|_| String::from("./"))
     }
 
     fn search_parallel(tab: &mut SearchTab, settings: &Settings) {
@@ -500,7 +498,7 @@ impl App {
     fn draw_result(ui: &Ui, result: &UiSearchEntry) {
         const COLOR_RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
         let mut printed = 0;
-        for (start, end) in result.matches.iter().map(|&val| val) {
+        for (start, end) in result.matches.iter().copied() {
             Self::draw_text_from_cow(
                 ui,
                 None,
@@ -587,7 +585,7 @@ impl App {
                     }
                     show_help(ui, crate::help::GLOBS_USAGE);
 
-                    let queries = std::mem::replace(&mut tab.config.queries, vec![]);
+                    let queries = std::mem::take(&mut tab.config.queries);
                     for (idx, mut query) in queries.into_iter().enumerate() {
                         // Dropping this value pop the id from IMGUI stack.
                         let _stack = ui.push_id_usize(idx);
@@ -865,7 +863,7 @@ impl App {
 
             let tab_flags = TabBarFlags::REORDERABLE | TabBarFlags::AUTO_SELECT_NEW_TABS;
             TabBar::new("##tabs").flags(tab_flags).build(ui, || {
-                let tabs = std::mem::replace(&mut self.tabs, vec![]);
+                let tabs = std::mem::take(&mut self.tabs);
                 for (tab_id, tab) in tabs.into_iter().enumerate() {
                     let _stack = ui.push_id_usize(tab_id);
                     self.draw_tab(ui, tab_id, tab);

@@ -8,7 +8,6 @@ use ignore::{
     overrides::{Override, OverrideBuilder},
     WalkBuilder, WalkState,
 };
-use regex;
 use std::{
     path::{Path, PathBuf},
     sync::{
@@ -87,7 +86,7 @@ impl PendingSearch {
         Self {
             rx,
             quit,
-            start_time: start_time,
+            start_time,
         }
     }
 
@@ -130,15 +129,13 @@ impl SearchWorker {
 
         let bin_detection = if search_binary {
             BinaryDetection::none()
+        } else if dir_entry.depth() == 0 {
+            // If the depth of the entry is 0, it means the file was specified
+            // explicitly. So, we don't exclude this file if we detect it to be
+            // a binary.
+            BinaryDetection::convert(b'\x00')
         } else {
-            if dir_entry.depth() == 0 {
-                // If the depth of the entry is 0, it means the file was specified
-                // explicitly. So, we don't exclude this file if we detect it to be
-                // a binary.
-                BinaryDetection::convert(b'\x00')
-            } else {
-                BinaryDetection::quit(b'\x00')
-            }
+            BinaryDetection::quit(b'\x00')
         };
 
         self.searcher.set_binary_detection(bin_detection);
@@ -151,7 +148,7 @@ impl SearchWorker {
 
         let result = SearchResult {
             path,
-            entries: entries,
+            entries,
         };
 
         return Some(result);
@@ -254,7 +251,7 @@ impl SearchConfig {
             .paths
             .split(';')
             .filter(|value| !value.is_empty())
-            .map(|value| Path::new(value))
+            .map(Path::new)
             .collect();
         paths
     }
@@ -263,15 +260,15 @@ impl SearchConfig {
         if self.globs.is_empty() {
             Override::empty()
         } else {
-            let path = std::env::current_dir().unwrap_or(PathBuf::from("/"));
+            let path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
             let mut builder = OverrideBuilder::new(path);
             for glob in self.globs.split(' ').filter(|value| !value.is_empty()) {
-                if let Err(err) = builder.add(&glob) {
+                if let Err(err) = builder.add(glob) {
                     println!("Failed to add glob '{}' with error: {}", glob, err);
                 }
             }
 
-            builder.build().unwrap_or(Override::empty())
+            builder.build().unwrap_or_else(|_| Override::empty())
         }
     }
 
@@ -292,7 +289,7 @@ impl SearchConfig {
             return workers;
         }
 
-        while let Some(query) = it.next() {
+        for query in it {
             if let Ok(worker) = query.search_worker(false) {
                 workers.push(worker);
             } else {
@@ -334,7 +331,7 @@ pub fn spawn_search(
             .map(|value| value.get())
             .unwrap_or(2)
     } else {
-        number_of_threads as usize
+        number_of_threads
     };
 
     let walker = builder.threads(threads).build_parallel();

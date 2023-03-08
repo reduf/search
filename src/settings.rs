@@ -156,7 +156,7 @@ impl SettingsWindow {
     pub fn load_from_file(path: PathBuf) -> Self {
         // @Enhancement:
         // The clone here, shouldn't be necessary and force a memory allocation and copy.
-        return Self::try_load_from_file(path.clone()).unwrap_or(SettingsWindow::new(path));
+        return Self::try_load_from_file(path.clone()).unwrap_or_else(|_| SettingsWindow::new(path));
     }
 
     pub fn save_to_file(&self, path: &Path) -> Result<()> {
@@ -177,7 +177,7 @@ impl SettingsWindow {
 
         // When failing to load any settings, we just fallback to the current
         // directory.
-        let mut path = current_dir().unwrap_or(PathBuf::from(""));
+        let mut path = current_dir().unwrap_or_else(|_| PathBuf::from(""));
         path.push(SETTING_FILE_NAME);
         return SettingsWindow::new(path);
     }
