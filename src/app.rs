@@ -477,7 +477,7 @@ impl App {
         }
 
         if let Some(menu) = ui.begin_menu("Help") {
-            ui.text("Version: 0.4.0\nHomepage: https://github.com/reduf/search");
+            ui.text("Version: 0.5.0\nHomepage: https://github.com/reduf/search");
             ui.separator();
             if ui.menu_item_config("Hotkeys").shortcut("F1").build() {
                 self.hotkeys.toggle_open();
