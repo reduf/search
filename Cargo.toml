@@ -20,7 +20,7 @@ winres = "0.1"
 anyhow = "1.0.66"
 clap = { version = "4.1.8", features = ["derive"] }
 cfg-if = "1.0.0"
-copypasta = "0.8.2"
+arboard = { version = "3.2.0", default-features = false }
 glium = { version = "0.32.1", default-features = true }
 grep = "0.2"
 ignore = "0.4"
