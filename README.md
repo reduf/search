@@ -4,6 +4,19 @@ Search was an experiment on creating a UI to search file content, recursively
 exploring directory. Such UI already exist, but the many I have tried lack some
 features which I thought would be very useful.
 
+## Building
+
+On Windows, you can simply run `cargo build` or `cargo build --release`.
+
+On Linux, you first need to install libgtk.
+```
+> apt update
+> apt install -y libgtk-3-dev
+> cargo build
+```
+
+## How is *Search* different?
+
 ### Multithreading
 
 The first feature I absolutely wanted in *Search* was multithreading search.
@@ -25,6 +38,8 @@ Similarly, this was something I absolutely wanted and use all the time.
 
 
 ### Pipes searching
+
+> :warning: This is currently not implemented.
 
 Complex regexes can probably allow you to find accurately everything, but
 personally I rather use the complex of "pipes" to find something. With grep,
