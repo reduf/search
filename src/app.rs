@@ -12,6 +12,8 @@ use std::{
     time::Duration,
 };
 
+use rfd::FileDialog;
+
 use crate::{editor::*, help::*, hotkeys::*, search::*, settings::*};
 
 pub struct App {
@@ -559,11 +561,30 @@ impl App {
                     ui.table_next_column();
                     ui.text("Paths:");
                     ui.table_next_column();
-                    if ui
+                    let mut paths_edited = ui
                         .input_text("##paths", &mut tab.config.paths)
                         .enter_returns_true(true)
-                        .build()
-                    {
+                        .build();
+                    
+                    ui.same_line();
+                    if ui.button("...") {
+                        let maybe_folders = FileDialog::new()
+                            .set_directory("/")
+                            .pick_folders();
+
+                        match maybe_folders {
+                            Some(folders) => {
+                                for f in folders.iter() {
+                                    tab.config.paths.push(';');
+                                    tab.config.paths.push_str(&f.as_path().display().to_string());
+                                }
+                                paths_edited = true;
+                            },
+                            None => {},
+                        }
+                    }
+
+                    if paths_edited {
                         // Keep the focus in the search input making it easier to iterate.
                         ui.set_keyboard_focus_here_with_offset(FocusedWidget::Previous);
                         search = true;

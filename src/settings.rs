@@ -6,6 +6,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use rfd::FileDialog;
 
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq)]
 pub enum StyleColor {
@@ -295,6 +296,23 @@ impl SettingsWindow {
                 ui.input_text("##editor", &mut self.settings.editor_path)
                     .hint(Settings::default_editor_path())
                     .build();
+                ui.same_line();
+                if ui.button("...") {
+                    let maybe_file = FileDialog::new()
+                        .add_filter("Executable files", &["exe"])
+                        .set_directory("/")
+                        .pick_file();
+                    match maybe_file {
+                        Some(f) => {
+                            self.settings.editor_path.clear();
+                            self.settings.editor_path.push('"');
+                            self.settings.editor_path.push_str(&f.as_path().display().to_string());
+                            self.settings.editor_path.push('"');
+                        },
+                        None => {},
+                    }
+                }
+
                 help::show_help(ui, help::SETTINGS_EDITOR_HELP);
             }
         });
