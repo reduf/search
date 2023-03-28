@@ -581,7 +581,9 @@ impl App {
                         match maybe_folders {
                             Some(folders) => {
                                 for f in folders.iter() {
-                                    tab.config.paths.push(';');
+                                    if !tab.config.paths.is_empty() {
+                                        tab.config.paths.push(';');
+                                    }
                                     tab.config.paths.push_str(&f.as_path().display().to_string());
                                 }
                                 paths_edited = true;
