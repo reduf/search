@@ -4,6 +4,8 @@ Search was an experiment on creating a UI to search file content, recursively
 exploring directory. Such UI already exist, but the many I have tried lack some
 features which I thought would be very useful.
 
+![Screenshot of a searching some directories of the Linux kernel tree](images/search.png)
+
 ## Building
 
 On Windows, you can simply run `cargo build` or `cargo build --release`.
