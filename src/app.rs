@@ -524,6 +524,112 @@ impl App {
         Self::draw_text_from_cow(ui, None, String::from_utf8_lossy(&result.bytes[printed..]));
     }
 
+    fn draw_results(&mut self, ui: &Ui, tab: &mut SearchTab) {
+        let clip = ListClipper::new(tab.results.len() as i32);
+        let mut tok = clip.begin(ui);
+
+        let flags = TableFlags::REORDERABLE | TableFlags::RESIZABLE | TableFlags::SIZING_FIXED_FIT;
+        if let Some(_) = ui.begin_table_with_flags("table-headers", 3, flags) {
+            let avail_width = ui.content_region_avail()[0];
+            ui.table_setup_column_with(TableColumnSetup {
+                name: "File",
+                flags: TableColumnFlags::WIDTH_FIXED,
+                init_width_or_weight: 0.5 * avail_width,
+                user_id: Id::default(),
+            });
+            ui.table_setup_column_with(TableColumnSetup {
+                name: "Line",
+                flags: TableColumnFlags::WIDTH_FIXED,
+                init_width_or_weight: 0.1 * avail_width,
+                user_id: Id::default(),
+            });
+            ui.table_setup_column_with(TableColumnSetup {
+                name: "Text",
+                flags: TableColumnFlags::WIDTH_STRETCH,
+                init_width_or_weight: 0.0,
+                user_id: Id::default(),
+            });
+            ui.table_headers_row();
+
+            while tok.step() {
+                for row_num in tok.display_start()..tok.display_end() {
+                    let row_id = row_num as usize;
+                    let _stack = ui.push_id_usize(row_id);
+
+                    ui.table_next_column();
+                    if ui
+                        .selectable_config(tab.results[row_id].path.as_ref())
+                        .span_all_columns(true)
+                        .selected(tab.results[row_id].selected)
+                        .allow_double_click(true)
+                        .build()
+                    {
+                        if ui.is_mouse_double_clicked(MouseButton::Left) {
+                            let command = build_command(
+                                self.settings.settings.editor_path(),
+                                tab.results[row_id].path.as_ref().clone(),
+                                tab.results[row_id].line_number as usize,
+                            );
+
+                            if let Ok(command) = command {
+                                self.commands.push_back(command);
+                            } else {
+                                println!(
+                                    "Invalid editor '{}'",
+                                    self.settings.settings.editor_path()
+                                );
+                            }
+                        } else {
+                            if let Some(last_selected_row) = tab.last_selected_row {
+                                tab.results[last_selected_row].selected = false;
+                            }
+
+                            tab.results[row_id].selected = !tab.results[row_id].selected;
+                            tab.last_selected_row = Some(row_id);
+                        }
+                    }
+
+                    if ui.is_item_focused() {
+                        tab.last_focused_row = Some(row_id);
+                    }
+
+                    if ui.is_mouse_clicked(MouseButton::Right) && ui.is_item_hovered() {
+                        ui.open_popup("row-context");
+                    }
+
+                    if let Some(_) = ui.begin_popup("row-context") {
+                        if ui.menu_item_config("Open").shortcut("F4").build() {
+                            let command = build_command(
+                                self.settings.settings.editor_path(),
+                                tab.results[row_id].path.as_ref().clone(),
+                                tab.results[row_id].line_number as usize,
+                            );
+
+                            if let Ok(command) = command {
+                                self.commands.push_back(command);
+                            } else {
+                                println!(
+                                    "Invalid editor '{}'",
+                                    self.settings.settings.editor_path()
+                                );
+                            }
+                        }
+
+                        if ui.menu_item_config("Copy Path").build() {
+                            ui.set_clipboard_text(tab.results[row_id].path.as_ref());
+                        }
+                    }
+
+                    ui.table_next_column();
+                    ui.text(format!("{}", tab.results[row_id].line_number));
+
+                    ui.table_next_column();
+                    Self::draw_result(ui, &tab.results[row_id]);
+                }
+            }
+        }
+    }
+
     fn draw_tab(&mut self, ui: &Ui, tab_id: usize, mut tab: SearchTab) {
         tab.update_pending_search();
 
@@ -571,14 +677,12 @@ impl App {
                         .input_text("##paths", &mut tab.config.paths)
                         .enter_returns_true(true)
                         .build();
-                    
+
                     show_help(ui, crate::help::PATHS_USAGE);
 
                     ui.same_line();
                     if ui.button("...") {
-                        let maybe_folders = FileDialog::new()
-                            .set_directory("/")
-                            .pick_folders();
+                        let maybe_folders = FileDialog::new().set_directory("/").pick_folders();
 
                         match maybe_folders {
                             Some(folders) => {
@@ -588,11 +692,13 @@ impl App {
                                         _ => tab.config.paths.push(';'),
                                     };
 
-                                    tab.config.paths.push_str(&f.as_path().display().to_string());
+                                    tab.config
+                                        .paths
+                                        .push_str(&f.as_path().display().to_string());
                                 }
                                 paths_edited = true;
-                            },
-                            None => {},
+                            }
+                            None => {}
                         }
                     }
 
@@ -703,120 +809,9 @@ impl App {
                 let footer_height = height_seperator + ui.frame_height();
 
                 ui.separator();
-                ui.child_window("##result")
+                ui.child_window("##results")
                     .size([0.0, -footer_height])
-                    .build(|| {
-                        let clip = ListClipper::new(tab.results.len() as i32);
-                        let mut tok = clip.begin(ui);
-
-                        let flags = TableFlags::REORDERABLE
-                            | TableFlags::RESIZABLE
-                            | TableFlags::SIZING_FIXED_FIT;
-                        if let Some(_t) = ui.begin_table_with_flags("table-headers", 3, flags) {
-                            let avail_width = ui.content_region_avail()[0];
-                            ui.table_setup_column_with(TableColumnSetup {
-                                name: "File",
-                                flags: TableColumnFlags::WIDTH_FIXED,
-                                init_width_or_weight: 0.5 * avail_width,
-                                user_id: Id::default(),
-                            });
-                            ui.table_setup_column_with(TableColumnSetup {
-                                name: "Line",
-                                flags: TableColumnFlags::WIDTH_FIXED,
-                                init_width_or_weight: 0.1 * avail_width,
-                                user_id: Id::default(),
-                            });
-                            ui.table_setup_column_with(TableColumnSetup {
-                                name: "Text",
-                                flags: TableColumnFlags::WIDTH_STRETCH,
-                                init_width_or_weight: 0.0,
-                                user_id: Id::default(),
-                            });
-                            ui.table_headers_row();
-
-                            while tok.step() {
-                                for row_num in tok.display_start()..tok.display_end() {
-                                    let row_id = row_num as usize;
-                                    let _stack = ui.push_id_usize(row_id);
-
-                                    ui.table_next_column();
-                                    if ui
-                                        .selectable_config(tab.results[row_id].path.as_ref())
-                                        .span_all_columns(true)
-                                        .selected(tab.results[row_id].selected)
-                                        .allow_double_click(true)
-                                        .build()
-                                    {
-                                        if ui.is_mouse_double_clicked(MouseButton::Left) {
-                                            let command = build_command(
-                                                self.settings.settings.editor_path(),
-                                                tab.results[row_id].path.as_ref().clone(),
-                                                tab.results[row_id].line_number as usize,
-                                            );
-
-                                            if let Ok(command) = command {
-                                                self.commands.push_back(command);
-                                            } else {
-                                                println!(
-                                                    "Invalid editor '{}'",
-                                                    self.settings.settings.editor_path()
-                                                );
-                                            }
-                                        } else {
-                                            if let Some(last_selected_row) = tab.last_selected_row {
-                                                tab.results[last_selected_row].selected = false;
-                                            }
-
-                                            tab.results[row_id].selected =
-                                                !tab.results[row_id].selected;
-                                            tab.last_selected_row = Some(row_id);
-                                        }
-                                    }
-
-                                    if ui.is_item_focused() {
-                                        tab.last_focused_row = Some(row_id);
-                                    }
-
-                                    if ui.is_mouse_clicked(MouseButton::Right)
-                                        && ui.is_item_hovered()
-                                    {
-                                        ui.open_popup("row-context");
-                                    }
-
-                                    if let Some(_) = ui.begin_popup("row-context") {
-                                        if ui.menu_item_config("Open").shortcut("F4").build() {
-                                            let command = build_command(
-                                                self.settings.settings.editor_path(),
-                                                tab.results[row_id].path.as_ref().clone(),
-                                                tab.results[row_id].line_number as usize,
-                                            );
-
-                                            if let Ok(command) = command {
-                                                self.commands.push_back(command);
-                                            } else {
-                                                println!(
-                                                    "Invalid editor '{}'",
-                                                    self.settings.settings.editor_path()
-                                                );
-                                            }
-                                        }
-
-                                        if ui.menu_item_config("Copy Path").build() {
-                                            ui.set_clipboard_text(
-                                                tab.results[row_id].path.as_ref(),
-                                            );
-                                        }
-                                    }
-
-                                    ui.table_next_column();
-                                    ui.text(format!("{}", tab.results[row_id].line_number));
-
-                                    ui.table_next_column();
-                                    Self::draw_result(ui, &tab.results[row_id]);
-                                }
-                            }
-                        }
-                    });
+                    .build(|| self.draw_results(ui, &mut tab));
 
                 ui.separator();
                 let duration = tab.search_duration();
