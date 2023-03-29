@@ -17,6 +17,20 @@ On Linux, you first need to install libgtk.
 > cargo build
 ```
 
+## Usage (Command line arguments)
+
+```
+Usage: search.exe [OPTIONS]
+
+Options:
+      --workspace <WORKSPACE>  Path of the workspace in which to start the program. Default is current workspace
+      --paths <PATHS>          Default paths to search in. Default is workspace
+      --patterns <PATTERNS>    Default patterns used to filter the file names. Default is workspace
+  -c, --config <CONFIG>        Path to the config file to use
+  -h, --help                   Print help
+  -V, --version                Print version
+```
+
 ## How is *Search* different?
 
 ### Multithreading
