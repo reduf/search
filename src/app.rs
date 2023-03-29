@@ -572,6 +572,8 @@ impl App {
                         .enter_returns_true(true)
                         .build();
                     
+                    show_help(ui, crate::help::PATHS_USAGE);
+
                     ui.same_line();
                     if ui.button("...") {
                         let maybe_folders = FileDialog::new()
@@ -581,9 +583,11 @@ impl App {
                         match maybe_folders {
                             Some(folders) => {
                                 for f in folders.iter() {
-                                    if !tab.config.paths.is_empty() {
-                                        tab.config.paths.push(';');
-                                    }
+                                    match tab.config.paths.chars().last() {
+                                        None | Some(';') => (),
+                                        _ => tab.config.paths.push(';'),
+                                    };
+
                                     tab.config.paths.push_str(&f.as_path().display().to_string());
                                 }
                                 paths_edited = true;
@@ -597,7 +601,6 @@ impl App {
                         ui.set_keyboard_focus_here_with_offset(FocusedWidget::Previous);
                         search = true;
                     }
-                    show_help(ui, crate::help::PATHS_USAGE);
 
                     ui.table_next_column();
                     ui.text("Patterns:");
