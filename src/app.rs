@@ -591,19 +591,21 @@ impl App {
                         }
                     }
 
-                    if ui.is_mouse_down(MouseButton::Left)
-                        && ui.is_mouse_dragging(MouseButton::Left)
-                    {
-                        self.drag_files
-                            .push(tab.results[row_id].path.as_ref().clone());
-                    }
-
                     if ui.is_item_focused() {
                         tab.last_focused_row = Some(row_id);
                     }
 
-                    if ui.is_mouse_clicked(MouseButton::Right) && ui.is_item_hovered() {
-                        ui.open_popup("row-context");
+                    if ui.is_item_hovered() {
+                        if ui.is_mouse_clicked(MouseButton::Right) {
+                            ui.open_popup("row-context");
+                        }
+
+                        if ui.is_mouse_down(MouseButton::Left)
+                            && ui.is_mouse_dragging(MouseButton::Left)
+                        {
+                            self.drag_files
+                                .push(tab.results[row_id].path.as_ref().clone());
+                        }
                     }
 
                     if let Some(_) = ui.begin_popup("row-context") {
