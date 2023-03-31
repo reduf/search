@@ -1,12 +1,12 @@
 use crate::help;
 use anyhow::{anyhow, bail, Result};
 use imgui::*;
+use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
-use rfd::FileDialog;
 
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq)]
 pub enum StyleColor {
@@ -157,7 +157,8 @@ impl SettingsWindow {
     pub fn load_from_file(path: PathBuf) -> Self {
         // @Enhancement:
         // The clone here, shouldn't be necessary and force a memory allocation and copy.
-        return Self::try_load_from_file(path.clone()).unwrap_or_else(|_| SettingsWindow::new(path));
+        return Self::try_load_from_file(path.clone())
+            .unwrap_or_else(|_| SettingsWindow::new(path));
     }
 
     pub fn save_to_file(&self, path: &Path) -> Result<()> {
@@ -306,10 +307,12 @@ impl SettingsWindow {
                         Some(f) => {
                             self.settings.editor_path.clear();
                             self.settings.editor_path.push('"');
-                            self.settings.editor_path.push_str(&f.as_path().display().to_string());
+                            self.settings
+                                .editor_path
+                                .push_str(&f.as_path().display().to_string());
                             self.settings.editor_path.push('"');
-                        },
-                        None => {},
+                        }
+                        None => {}
                     }
                 }
 

@@ -1205,9 +1205,9 @@ dependencies = [
 
 [[package]]
 name = "imgui"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fed69cf982eee638cb1a2f1cf1d4b20626ea1813b7d37df6f7d3a2d5086c8cc"
+checksum = "2cea19ca90247d9c994663a9f68edd9792b26ad0af390ceb8b43e881c90121bc"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -1218,9 +1218,9 @@ dependencies = [
 
 [[package]]
 name = "imgui-glium-renderer"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "268e540dd36ef37d640cb8d6e66a87af160f61745b8f8ee518109cade69d64fc"
+checksum = "3e25883dd9f02125af7167a07effe4aab4072e9f3857a63fb3c3f5572f7af5ac"
 dependencies = [
  "glium",
  "imgui",
@@ -1228,9 +1228,9 @@ dependencies = [
 
 [[package]]
 name = "imgui-sys"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2efc4bf8f1638a573e262ce131f870226d172e986fe966a141c2c60602589b71"
+checksum = "612ceabf43b8c293b165f987539018b3fe6e30dd8af0c890dee1461c75250adb"
 dependencies = [
  "cc",
  "cfg-if",
@@ -1240,9 +1240,9 @@ dependencies = [
 
 [[package]]
 name = "imgui-winit-support"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36f1fe7b8e1e042fadb8e521fe813c0311fdd0de27274bd37ef78eb8ba248161"
+checksum = "5fde5f2092b5852a838ef13eb5dfbd58c18aa8754bbea45cffabd53efb584f3a"
 dependencies = [
  "imgui",
  "winit",
@@ -1955,7 +1955,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "windows",
+ "windows 0.44.0",
 ]
 
 [[package]]
@@ -2066,6 +2066,7 @@ dependencies = [
  "rfd",
  "serde",
  "serde_json",
+ "windows 0.43.0",
  "winres",
 ]
 
@@ -2635,11 +2636,38 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
+version = "0.43.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04662ed0e3e5630dfa9b26e4cb823b817f1a9addda855d973a9458c236556244"
+dependencies = [
+ "windows-implement",
+ "windows_aarch64_gnullvm",
+ "windows_aarch64_msvc 0.42.1",
+ "windows_i686_gnu 0.42.1",
+ "windows_i686_msvc 0.42.1",
+ "windows_x86_64_gnu 0.42.1",
+ "windows_x86_64_gnullvm",
+ "windows_x86_64_msvc 0.42.1",
+]
+
+[[package]]
+name = "windows"
 version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e745dab35a0c4c77aa3ce42d595e13d2003d6902d6b08c9ef5fc326d08da12b"
 dependencies = [
  "windows-targets",
+]
+
+[[package]]
+name = "windows-implement"
+version = "0.43.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7e29b056dc743c5b8f70010774e894bb54ac4f95a62a848c3458a6f5baef807"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

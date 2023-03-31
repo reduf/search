@@ -9,6 +9,7 @@ mod hotkeys;
 mod search;
 mod settings;
 mod support;
+mod sys;
 
 use clap::Parser;
 

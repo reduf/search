@@ -25,11 +25,25 @@ glium = { version = "0.32.1", default-features = true }
 grep = "0.2"
 ignore = "0.4"
 image = "0.24"
-imgui = { version = "0.9.0", features = ["tables-api"] }
-imgui-glium-renderer = "0.9.0"
-imgui-winit-support = "0.9.0"
+imgui = { version = "0.10.0", features = ["tables-api"] }
+imgui-glium-renderer = "0.10.0"
+imgui-winit-support = "0.10.0"
 indoc = "1.0"
 regex = "1.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rfd = "0.11.3"
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.43.0"
+features = [
+    "implement",
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Ole",
+    "Win32_System_Memory",
+    "Win32_System_SystemServices",
+    "Win32_UI_Shell",
+]

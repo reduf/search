@@ -146,10 +146,7 @@ impl SearchWorker {
             return None;
         }
 
-        let result = SearchResult {
-            path,
-            entries,
-        };
+        let result = SearchResult { path, entries };
 
         return Some(result);
     }

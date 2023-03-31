@@ -23,6 +23,7 @@ pub struct App {
     settings: SettingsWindow,
     hotkeys: HotkeysWindow,
     commands: VecDeque<Command>,
+    drag_files: Vec<String>,
     tabs: Vec<SearchTab>,
     selected_tab: usize,
     set_selected_tab: Option<usize>,
@@ -193,6 +194,7 @@ impl App {
             settings,
             hotkeys: HotkeysWindow::new(),
             commands: VecDeque::new(),
+            drag_files: Vec::new(),
             tabs,
             selected_tab: 0,
             set_selected_tab: None,
@@ -589,6 +591,13 @@ impl App {
                         }
                     }
 
+                    if ui.is_mouse_down(MouseButton::Left)
+                        && ui.is_mouse_dragging(MouseButton::Left)
+                    {
+                        self.drag_files
+                            .push(tab.results[row_id].path.as_ref().clone());
+                    }
+
                     if ui.is_item_focused() {
                         tab.last_focused_row = Some(row_id);
                     }
@@ -698,7 +707,7 @@ impl App {
                                 }
                                 paths_edited = true;
                             }
-                            None => {}
+                            None => (),
                         }
                     }
 
@@ -897,5 +906,19 @@ impl App {
                 }
             });
         });
+    }
+
+    pub fn process_drag_drop(&mut self, io: &mut Io) {
+        if !self.drag_files.is_empty() {
+            let files = std::mem::take(&mut self.drag_files);
+            let files: Vec<&str> = files.iter().map(|file| file.as_str()).collect();
+
+            crate::sys::enter_drag_drop(files.as_slice());
+
+            // It's unclear whether we actually have to do that, but it seems so.
+            // Overall, we never receive the event telling us the mouse button was down, so imgui
+            // keeps thinking the button is clicked.
+            io.add_mouse_button_event(MouseButton::Left, false);
+        }
     }
 }

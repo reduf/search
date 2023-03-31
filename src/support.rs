@@ -164,6 +164,8 @@ impl System {
                     .render(&mut target, draw_data)
                     .expect("Rendering failed");
                 target.finish().expect("Failed to swap buffers");
+
+                app.process_drag_drop(imgui.io_mut());
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
