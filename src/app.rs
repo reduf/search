@@ -769,6 +769,9 @@ impl App {
                         ui.checkbox("Ignore case", &mut query.ignore_case);
                         ui.same_line();
                         ui.checkbox("Invert match", &mut query.invert_match);
+                        if ui.is_item_hovered() {
+                            ui.tooltip_text("Show lines that do not match the given patterns.");
+                        }
                         ui.same_line();
 
                         tab.config.queries.push(query);
