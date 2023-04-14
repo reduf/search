@@ -530,27 +530,11 @@ impl App {
         let clip = ListClipper::new(tab.results.len() as i32);
         let mut tok = clip.begin(ui);
 
-        let flags = TableFlags::REORDERABLE | TableFlags::RESIZABLE | TableFlags::SIZING_FIXED_FIT;
+        let flags = TableFlags::REORDERABLE | TableFlags::SCROLL_X;
         if let Some(_) = ui.begin_table_with_flags("table-headers", 3, flags) {
-            let avail_width = ui.content_region_avail()[0];
-            ui.table_setup_column_with(TableColumnSetup {
-                name: "File",
-                flags: TableColumnFlags::WIDTH_FIXED,
-                init_width_or_weight: 0.5 * avail_width,
-                user_id: Id::default(),
-            });
-            ui.table_setup_column_with(TableColumnSetup {
-                name: "Line",
-                flags: TableColumnFlags::WIDTH_FIXED,
-                init_width_or_weight: 0.1 * avail_width,
-                user_id: Id::default(),
-            });
-            ui.table_setup_column_with(TableColumnSetup {
-                name: "Text",
-                flags: TableColumnFlags::WIDTH_STRETCH,
-                init_width_or_weight: 0.0,
-                user_id: Id::default(),
-            });
+            ui.table_setup_column("File");
+            ui.table_setup_column("Line");
+            ui.table_setup_column("Text");
             ui.table_headers_row();
 
             while tok.step() {
