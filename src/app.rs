@@ -5,7 +5,7 @@ use glium::glutin::{
 use imgui::*;
 use std::{
     collections::VecDeque,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, Command},
     rc::Rc,
     sync::mpsc::TryRecvError,
@@ -558,9 +558,19 @@ impl App {
                     let row_id = row_num as usize;
                     let _stack = ui.push_id_usize(row_id);
 
+                    let drawn_path = if self.settings.settings.only_show_filename {
+                        let result_file_path = tab.results[row_id].path.as_ref();
+                        Path::new(result_file_path)
+                            .file_name()
+                            .map(|filename| filename.to_str().unwrap_or(result_file_path))
+                            .unwrap_or(result_file_path)
+                    } else {
+                        tab.results[row_id].path.as_ref()
+                    };
+
                     ui.table_next_column();
                     if ui
-                        .selectable_config(tab.results[row_id].path.as_ref())
+                        .selectable_config(drawn_path)
                         .span_all_columns(true)
                         .selected(tab.results[row_id].selected)
                         .allow_double_click(true)
@@ -596,6 +606,10 @@ impl App {
                     }
 
                     if ui.is_item_hovered() {
+                        if self.settings.settings.only_show_filename {
+                            ui.tooltip_text(tab.results[row_id].path.as_ref());
+                        }
+
                         if ui.is_mouse_clicked(MouseButton::Right) {
                             ui.open_popup("row-context");
                         }
@@ -626,7 +640,7 @@ impl App {
                             }
                         }
 
-                        if ui.menu_item_config("Copy Path").build() {
+                        if ui.menu_item_config("Copy Full Path").build() {
                             ui.set_clipboard_text(tab.results[row_id].path.as_ref());
                         }
                     }

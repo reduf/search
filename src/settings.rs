@@ -58,6 +58,8 @@ pub struct Settings {
     pub style_color: StyleColor,
     #[serde(default)]
     pub incremental_search: BoolTrue,
+    #[serde(default)]
+    pub only_show_filename: bool,
 }
 
 impl Settings {
@@ -290,6 +292,15 @@ impl SettingsWindow {
                     &mut self.settings.incremental_search.0,
                 );
                 help::show_help(ui, help::SETTINGS_INCREMENTAL_SEARCH_HELP);
+
+                ui.table_next_column();
+                ui.text("Only show the filename: ");
+                ui.table_next_column();
+                ui.checkbox(
+                    "##only-show-filename",
+                    &mut self.settings.only_show_filename,
+                );
+                help::show_help(ui, help::SETTINGS_ONLY_SHOW_FILENAME_HELP);
 
                 ui.table_next_column();
                 ui.text("Editor Path: ");

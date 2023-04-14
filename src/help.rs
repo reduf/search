@@ -49,3 +49,8 @@ pub const SETTINGS_EDITOR_HELP: &str = indoc! {"
     - {file} Path to the file
     - {line} Line of the result
 "};
+
+pub const SETTINGS_ONLY_SHOW_FILENAME_HELP: &str = indoc! {"
+    Only show the filename in the path column. Hovering the row will show the
+    full path of the file.
+"};
