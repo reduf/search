@@ -86,7 +86,7 @@ impl SearchTab {
             last_focused_row: None,
             last_selected_row: None,
             error_message: None,
-            focus_query_input: false,
+            focus_query_input: true,
         }
     }
 
