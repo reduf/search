@@ -626,7 +626,7 @@ impl App {
         ui.table_next_column();
         for (idx, line) in lines.iter_mut().enumerate() {
             if !line.is_matched() {
-                ui.new_line();            
+                ui.new_line();
             } else {
                 self.draw_selectable_path(ui, tab, row_id, Rc::clone(&full_path), drawn_path, idx, line);
             }
