@@ -35,22 +35,16 @@ pub struct App {
 }
 
 pub struct UiSearchEntry {
-    pub selected: bool,
     pub path: Rc<String>,
-    pub line_number: u64,
-    pub bytes: Vec<u8>,
-    pub matches: Vec<(usize, usize)>,
+    pub lines: Vec<SearchResultLine>,
 }
 
 impl UiSearchEntry {
     fn new(path: Rc<String>, entry: SearchResultEntry) -> Self {
-        Self {
-            selected: false,
+        return Self {
             path,
-            line_number: entry.line_number,
-            bytes: entry.bytes,
-            matches: entry.matches,
-        }
+            lines: entry.lines,
+        };
     }
 }
 
@@ -61,8 +55,8 @@ pub struct SearchTab {
     file_searched: usize,
     file_searched_with_results: usize,
     search_duration: Duration,
-    last_focused_row: Option<usize>,
-    last_selected_row: Option<usize>,
+    last_focused_id: Option<(usize, usize)>,
+    last_selected_id: Option<(usize, usize)>,
     error_message: Option<String>,
     focus_query_input: bool,
 }
@@ -83,8 +77,8 @@ impl SearchTab {
             file_searched: 0,
             file_searched_with_results: 0,
             search_duration: Duration::from_secs(0),
-            last_focused_row: None,
-            last_selected_row: None,
+            last_focused_id: None,
+            last_selected_id: None,
             error_message: None,
             focus_query_input: true,
         }
@@ -110,8 +104,8 @@ impl SearchTab {
             self.file_searched = 0;
             self.search_duration = Duration::from_secs(0);
             self.file_searched_with_results = 0;
-            self.last_focused_row = None;
-            self.last_selected_row = None;
+            self.last_focused_id = None;
+            self.last_selected_id = None;
             self.error_message = None;
         }
     }
@@ -369,11 +363,11 @@ impl App {
             if state == ElementState::Pressed {
                 if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
                     if !self.settings.settings.editor_path().is_empty() {
-                        if let Some(last_focused_row) = tab.last_focused_row {
+                        if let Some((row_id, line_id)) = tab.last_focused_id {
                             let command = build_command(
                                 self.settings.settings.editor_path(),
-                                tab.results[last_focused_row].path.as_ref().clone(),
-                                tab.results[last_focused_row].line_number as usize,
+                                tab.results[row_id].path.as_ref().clone(),
+                                tab.results[row_id].lines[line_id].line_number as usize,
                             );
 
                             if let Ok(command) = command {
@@ -505,32 +499,163 @@ impl App {
         }
     }
 
-    fn draw_result(ui: &Ui, result: &UiSearchEntry) {
-        const COLOR_RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
-        let mut printed = 0;
-        for (start, end) in result.matches.iter().copied() {
-            Self::draw_text_from_cow(
-                ui,
-                None,
-                String::from_utf8_lossy(&result.bytes[printed..start]),
-            );
-            ui.same_line_with_spacing(0.0, 0.0);
-            Self::draw_text_from_cow(
-                ui,
-                Some(COLOR_RED),
-                String::from_utf8_lossy(&result.bytes[start..end]),
-            );
-            ui.same_line_with_spacing(0.0, 0.0);
-            printed = end;
+    fn draw_line_with_matches(ui: &Ui, line: &SearchResultLine) {
+        if line.is_matched() {
+            const COLOR_RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+            let mut printed = 0;
+            for (start, end) in line.matches.iter().copied() {
+                Self::draw_text_from_cow(
+                    ui,
+                    None,
+                    String::from_utf8_lossy(&line.bytes[printed..start]),
+                );
+                ui.same_line_with_spacing(0.0, 0.0);
+                Self::draw_text_from_cow(
+                    ui,
+                    Some(COLOR_RED),
+                    String::from_utf8_lossy(&line.bytes[start..end]),
+                );
+                ui.same_line_with_spacing(0.0, 0.0);
+                printed = end;
+            }
+            Self::draw_text_from_cow(ui, None, String::from_utf8_lossy(&line.bytes[printed..]));
+        } else {
+            Self::draw_text_from_cow(ui, None, String::from_utf8_lossy(&line.bytes));
         }
-        Self::draw_text_from_cow(ui, None, String::from_utf8_lossy(&result.bytes[printed..]));
+    }
+
+    fn draw_selectable_path(
+        &mut self,
+        ui: &Ui,
+        tab: &mut SearchTab,
+        row_id: usize,
+        full_path: Rc<String>,
+        label: &str,
+        line_id: usize,
+        line: &mut SearchResultLine,
+    ) {
+        let _stack = ui.push_id_usize(line_id);
+
+        if ui
+            .selectable_config(label)
+            .span_all_columns(true)
+            .selected(tab.last_selected_id == Some((row_id, line_id)))
+            .allow_double_click(true)
+            .build()
+        {
+            if ui.is_mouse_double_clicked(MouseButton::Left) {
+                let command = build_command(
+                    self.settings.settings.editor_path(),
+                    full_path.as_ref().clone(),
+                    line.line_number as usize,
+                );
+
+                if let Ok(command) = command {
+                    self.commands.push_back(command);
+                } else {
+                    println!(
+                        "Invalid editor '{}'",
+                        self.settings.settings.editor_path()
+                    );
+                }
+            } else {
+                tab.last_selected_id = Some((row_id, line_id));
+            }
+        }
+
+        if ui.is_item_focused() {
+            tab.last_focused_id = Some((row_id, line_id));
+        }
+
+        if ui.is_item_hovered() {
+            if self.settings.settings.only_show_filename {
+                ui.tooltip_text(full_path.as_ref());
+            }
+
+            if ui.is_mouse_clicked(MouseButton::Right) {
+                ui.open_popup("row-context");
+            }
+
+            if ui.is_mouse_down(MouseButton::Left) && ui.is_mouse_dragging(MouseButton::Left)
+            {
+                self.drag_files
+                    .push(full_path.as_ref().clone());
+            }
+        }
+
+        if let Some(_) = ui.begin_popup("row-context") {
+            if ui.menu_item_config("Open").shortcut("F4").build() {
+                let command = build_command(
+                    self.settings.settings.editor_path(),
+                    full_path.as_ref().clone(),
+                    line.line_number as usize,
+                );
+
+                if let Ok(command) = command {
+                    self.commands.push_back(command);
+                } else {
+                    println!(
+                        "Invalid editor '{}'",
+                        self.settings.settings.editor_path()
+                    );
+                }
+            }
+
+            if ui.menu_item_config("Copy Full Path").build() {
+                ui.set_clipboard_text(full_path.as_ref());
+            }
+        }
+    }
+
+    fn draw_result_line(&mut self, ui: &Ui, tab: &mut SearchTab, row_id: usize) {
+        let _stack = ui.push_id_usize(row_id);
+
+        let full_path = Rc::clone(&tab.results[row_id].path);
+        let drawn_path = if self.settings.settings.only_show_filename {
+            let result_file_path = full_path.as_ref();
+            Path::new(result_file_path)
+                .file_name()
+                .map(|filename| filename.to_str().unwrap_or(result_file_path))
+                .unwrap_or(result_file_path)
+        } else {
+            full_path.as_ref()
+        };
+
+        let mut lines = std::mem::take(&mut tab.results[row_id].lines);
+
+        ui.table_next_column();
+        for (idx, line) in lines.iter_mut().enumerate() {
+            if !line.is_matched() {
+                ui.new_line();            
+            } else {
+                self.draw_selectable_path(ui, tab, row_id, Rc::clone(&full_path), drawn_path, idx, line);
+            }
+        }
+
+        ui.table_next_column();
+        for line in lines.iter() {
+            ui.text(format!("{}", line.line_number));
+        }
+
+        ui.table_next_column();
+        for line in lines.iter() {
+            Self::draw_line_with_matches(ui, line);
+        }
+
+        tab.results[row_id].lines = lines;
     }
 
     fn draw_results(&mut self, ui: &Ui, tab: &mut SearchTab) {
         let clip = ListClipper::new(tab.results.len() as i32);
         let mut tok = clip.begin(ui);
 
-        let flags = TableFlags::REORDERABLE | TableFlags::SCROLL_X;
+        let mut flags = TableFlags::REORDERABLE | TableFlags::SCROLL_X;
+
+        // @Enhancement: This refresh even if no new search happen.
+        if tab.config.queries.get(0).map(|query| query.extra_context != 0).unwrap_or(false) {
+            flags |= TableFlags::ROW_BG;
+        }
+
         if let Some(_) = ui.begin_table_with_flags("table-headers", 3, flags) {
             ui.table_setup_column("File");
             ui.table_setup_column("Line");
@@ -540,100 +665,7 @@ impl App {
             while tok.step() {
                 for row_num in tok.display_start()..tok.display_end() {
                     let row_id = row_num as usize;
-                    let _stack = ui.push_id_usize(row_id);
-
-                    let drawn_path = if self.settings.settings.only_show_filename {
-                        let result_file_path = tab.results[row_id].path.as_ref();
-                        Path::new(result_file_path)
-                            .file_name()
-                            .map(|filename| filename.to_str().unwrap_or(result_file_path))
-                            .unwrap_or(result_file_path)
-                    } else {
-                        tab.results[row_id].path.as_ref()
-                    };
-
-                    ui.table_next_column();
-                    if ui
-                        .selectable_config(drawn_path)
-                        .span_all_columns(true)
-                        .selected(tab.results[row_id].selected)
-                        .allow_double_click(true)
-                        .build()
-                    {
-                        if ui.is_mouse_double_clicked(MouseButton::Left) {
-                            let command = build_command(
-                                self.settings.settings.editor_path(),
-                                tab.results[row_id].path.as_ref().clone(),
-                                tab.results[row_id].line_number as usize,
-                            );
-
-                            if let Ok(command) = command {
-                                self.commands.push_back(command);
-                            } else {
-                                println!(
-                                    "Invalid editor '{}'",
-                                    self.settings.settings.editor_path()
-                                );
-                            }
-                        } else {
-                            if let Some(last_selected_row) = tab.last_selected_row {
-                                tab.results[last_selected_row].selected = false;
-                            }
-
-                            tab.results[row_id].selected = !tab.results[row_id].selected;
-                            tab.last_selected_row = Some(row_id);
-                        }
-                    }
-
-                    if ui.is_item_focused() {
-                        tab.last_focused_row = Some(row_id);
-                    }
-
-                    if ui.is_item_hovered() {
-                        if self.settings.settings.only_show_filename {
-                            ui.tooltip_text(tab.results[row_id].path.as_ref());
-                        }
-
-                        if ui.is_mouse_clicked(MouseButton::Right) {
-                            ui.open_popup("row-context");
-                        }
-
-                        if ui.is_mouse_down(MouseButton::Left)
-                            && ui.is_mouse_dragging(MouseButton::Left)
-                        {
-                            self.drag_files
-                                .push(tab.results[row_id].path.as_ref().clone());
-                        }
-                    }
-
-                    if let Some(_) = ui.begin_popup("row-context") {
-                        if ui.menu_item_config("Open").shortcut("F4").build() {
-                            let command = build_command(
-                                self.settings.settings.editor_path(),
-                                tab.results[row_id].path.as_ref().clone(),
-                                tab.results[row_id].line_number as usize,
-                            );
-
-                            if let Ok(command) = command {
-                                self.commands.push_back(command);
-                            } else {
-                                println!(
-                                    "Invalid editor '{}'",
-                                    self.settings.settings.editor_path()
-                                );
-                            }
-                        }
-
-                        if ui.menu_item_config("Copy Full Path").build() {
-                            ui.set_clipboard_text(tab.results[row_id].path.as_ref());
-                        }
-                    }
-
-                    ui.table_next_column();
-                    ui.text(format!("{}", tab.results[row_id].line_number));
-
-                    ui.table_next_column();
-                    Self::draw_result(ui, &tab.results[row_id]);
+                    self.draw_result_line(ui, tab, row_id);
                 }
             }
         }
@@ -762,13 +794,28 @@ impl App {
                         }
 
                         ui.same_line();
-                        ui.checkbox("Regex syntax", &mut query.regex_syntax);
+                        ui.checkbox("Regex", &mut query.regex_syntax);
                         ui.same_line();
                         ui.checkbox("Ignore case", &mut query.ignore_case);
                         ui.same_line();
                         ui.checkbox("Invert match", &mut query.invert_match);
                         if ui.is_item_hovered() {
                             ui.tooltip_text("Show lines that do not match the given patterns.");
+                        }
+
+                        ui.same_line();
+                        ui.set_next_item_width(80.0);
+                        let mut extra_context_value = query.extra_context as i32;
+                        if ui.input_int("Context", &mut extra_context_value).build() {
+                            match extra_context_value.try_into() {
+                                Ok(value) => query.extra_context = value,
+                                Err(_) => {
+                                    tab.error_message = Some(String::from("Context value should be positive"));
+                                }
+                            }
+                        }
+                        if ui.is_item_hovered() {
+                            ui.tooltip_text("Show additional lines before and after each match.");
                         }
                         ui.same_line();
 

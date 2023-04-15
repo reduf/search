@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use grep::{
     matcher::Matcher,
     regex::{RegexMatcher, RegexMatcherBuilder},
-    searcher::{self, BinaryDetection, Searcher, SearcherBuilder, SinkMatch},
+    searcher::{self, BinaryDetection, Searcher, SearcherBuilder, SinkContext, SinkMatch, SinkFinish},
 };
 use ignore::{
     overrides::{Override, OverrideBuilder},
@@ -19,10 +19,70 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub struct SearchResultEntry {
+pub struct SearchResultLine {
     pub line_number: u64,
     pub bytes: Vec<u8>,
     pub matches: Vec<(usize, usize)>,
+}
+
+impl SearchResultLine {
+    pub fn is_matched(&self) -> bool {
+        return !self.matches.is_empty()
+    }
+}
+
+#[derive(Default)]
+pub struct SearchResultEntry {
+    pub matched_line_number: u64,
+    pub lines: Vec<SearchResultLine>,
+}
+
+struct SearchResultEntryBuilder(Option<SearchResultEntry>);
+impl SearchResultEntryBuilder {
+    pub fn new() -> Self {
+        return Self(None);
+    }
+
+    pub fn take(&mut self) -> Option<SearchResultEntry> {
+        return self.0.take();
+    }
+
+    pub fn with_match_line(&mut self, matcher: &RegexMatcher, line_number: u64, bytes: Vec<u8>) -> &mut Self {
+        let mut entry = self.0.take().unwrap_or(SearchResultEntry::default());
+
+        let mut at = 0;
+        let mut matches = Vec::new();
+        while let Ok(Some(matche)) = matcher.find_at(&bytes, at) {
+            matches.push((matche.start(), matche.end()));
+            at = matche.end();
+        }
+
+        let line = SearchResultLine {
+            line_number,
+            bytes,
+            matches,
+        };
+
+        entry.matched_line_number = line_number;
+        entry.lines.push(line);
+
+        self.0 = Some(entry);
+        return self;
+    }
+
+    pub fn with_context(&mut self, line_number: u64, bytes: Vec<u8>) -> &mut Self {
+        let mut entry = self.0.take().unwrap_or(SearchResultEntry::default());
+
+        let line = SearchResultLine {
+            line_number,
+            bytes,
+            matches: Vec::new(),
+        };
+
+        entry.lines.push(line);
+        self.0 = Some(entry);
+        return self;
+    }
 }
 
 pub struct SearchResult {
@@ -40,6 +100,9 @@ impl searcher::SinkError for SearchError {
 }
 
 struct SearchSink<'a, 'm> {
+    // We need to track if we have extra context, because when we don't, `context_break` is never called.
+    has_extra_context: bool,
+    builder: SearchResultEntryBuilder,
     results: &'a mut Vec<SearchResultEntry>,
     matcher: &'m RegexMatcher,
 }
@@ -48,28 +111,30 @@ impl searcher::Sink for SearchSink<'_, '_> {
     type Error = SearchError;
 
     fn matched(&mut self, _searcher: &Searcher, mat: &SinkMatch<'_>) -> Result<bool, Self::Error> {
-        let mut at = 0;
-        let mut matches = Vec::new();
-        while let Ok(Some(matche)) = self.matcher.find_at(mat.bytes(), at) {
-            assert_eq!(
-                mat.bytes()[matche],
-                mat.bytes()[matche.start()..matche.end()]
-            );
-            matches.push((matche.start(), matche.end()));
-            at = matche.end();
+        let line_number = mat.line_number().expect("Instruct the SearchBuilder to compute line numbers");
+        self.builder.with_match_line(self.matcher, line_number, mat.bytes().to_vec());
+
+        if !self.has_extra_context {
+            self.results.extend(self.builder.take());
         }
 
-        let bytes = mat.bytes().to_vec();
-        let result = SearchResultEntry {
-            line_number: mat.line_number().unwrap(),
-            bytes,
-            matches,
-        };
+        return Ok(true);
+    }
 
-        self.results.push(result);
+    fn context(&mut self, _searcher: &Searcher, context: &SinkContext<'_>) -> Result<bool, Self::Error> {
+        let line_number = context.line_number().expect("Instruct the SearchBuilder to compute line numbers");
+        self.builder.with_context(line_number, context.bytes().to_vec());
+        return Ok(true);
+    }
 
-        // Continue search
-        Ok(true)
+    fn context_break(&mut self, _searcher: &Searcher) -> Result<bool, Self::Error> {
+        self.results.extend(self.builder.take());
+        return Ok(true);
+    }
+
+    fn finish(&mut self, _searcher: &Searcher, _: &SinkFinish) -> Result<(), Self::Error> {
+        self.results.extend(self.builder.take());
+        return Ok(());
     }
 }
 
@@ -121,8 +186,12 @@ impl SearchWorker {
         dir_entry: ignore::DirEntry,
         search_binary: bool,
     ) -> Option<SearchResult> {
+        assert_eq!(self.searcher.before_context(), self.searcher.after_context(), "We currently only support equal context before and after");
+
         let mut entries = Vec::new();
         let search_sink = SearchSink {
+            has_extra_context: self.searcher.before_context() != 0,
+            builder: SearchResultEntryBuilder::new(),
             results: &mut entries,
             matcher: &self.matcher,
         };
@@ -158,8 +227,7 @@ pub struct SearchQuery {
     pub regex_syntax: bool,
     pub ignore_case: bool,
     pub invert_match: bool,
-    pub before_context: usize,
-    pub after_context: usize,
+    pub extra_context: usize,
 }
 
 impl SearchQuery {
@@ -169,8 +237,7 @@ impl SearchQuery {
             regex_syntax: false,
             ignore_case: true,
             invert_match: false,
-            before_context: 0,
-            after_context: 0,
+            extra_context: 0,
         }
     }
 
@@ -200,8 +267,8 @@ impl SearchQuery {
         let searcher = builder
             .invert_match(self.invert_match)
             .line_number(line_number)
-            .before_context(self.before_context)
-            .after_context(self.after_context)
+            .before_context(self.extra_context)
+            .after_context(self.extra_context)
             .build();
         return searcher;
     }
