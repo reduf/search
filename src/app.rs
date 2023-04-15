@@ -568,8 +568,9 @@ impl App {
         }
 
         if ui.is_item_hovered() {
-            if self.settings.settings.only_show_filename {
-                ui.tooltip_text(full_path.as_ref());
+            match self.settings.settings.path_style {
+                PathStyle::Absolute => (),
+                PathStyle::FileName => ui.tooltip_text(full_path.as_ref()),
             }
 
             if ui.is_mouse_clicked(MouseButton::Right) {
@@ -611,14 +612,15 @@ impl App {
         let _stack = ui.push_id_usize(row_id);
 
         let full_path = Rc::clone(&tab.results[row_id].path);
-        let drawn_path = if self.settings.settings.only_show_filename {
-            let result_file_path = full_path.as_ref();
-            Path::new(result_file_path)
-                .file_name()
-                .map(|filename| filename.to_str().unwrap_or(result_file_path))
-                .unwrap_or(result_file_path)
-        } else {
-            full_path.as_ref()
+        let drawn_path = match self.settings.settings.path_style {
+            PathStyle::Absolute => full_path.as_ref(),
+            PathStyle::FileName => {
+                let result_file_path = full_path.as_ref();
+                Path::new(result_file_path)
+                    .file_name()
+                    .map(|filename| filename.to_str().unwrap_or(result_file_path))
+                    .unwrap_or(result_file_path)
+            },
         };
 
         let mut lines = std::mem::take(&mut tab.results[row_id].lines);

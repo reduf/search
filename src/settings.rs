@@ -21,6 +21,19 @@ impl Default for StyleColor {
     }
 }
 
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq)]
+pub enum PathStyle {
+    Absolute,
+    FileName,
+    // Relative, // Not yet working.
+}
+
+impl Default for PathStyle {
+    fn default() -> Self {
+        Self::Absolute
+    }
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct BoolTrue(pub bool);
@@ -59,7 +72,7 @@ pub struct Settings {
     #[serde(default)]
     pub incremental_search: BoolTrue,
     #[serde(default)]
-    pub only_show_filename: bool,
+    pub path_style: PathStyle,
 }
 
 impl Settings {
@@ -294,12 +307,11 @@ impl SettingsWindow {
                 help::show_help(ui, help::SETTINGS_INCREMENTAL_SEARCH_HELP);
 
                 ui.table_next_column();
-                ui.text("Only show the filename: ");
+                ui.text("Path style: ");
                 ui.table_next_column();
-                ui.checkbox(
-                    "##only-show-filename",
-                    &mut self.settings.only_show_filename,
-                );
+                ui.radio_button("Absolute", &mut self.settings.path_style, PathStyle::Absolute);
+                ui.same_line();
+                ui.radio_button("File name", &mut self.settings.path_style, PathStyle::FileName);
                 help::show_help(ui, help::SETTINGS_ONLY_SHOW_FILENAME_HELP);
 
                 ui.table_next_column();
