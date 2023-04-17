@@ -534,7 +534,7 @@ impl App {
         line_id: usize,
         line: &mut SearchResultLine,
     ) {
-        let _stack = ui.push_id_usize(line_id);
+        let stack = ui.push_id_usize(line_id);
 
         if ui
             .selectable_config(label)
@@ -606,6 +606,8 @@ impl App {
                 ui.set_clipboard_text(full_path.as_ref());
             }
         }
+
+        stack.end();
     }
 
     fn draw_result_line(&mut self, ui: &Ui, tab: &mut SearchTab, row_id: usize) {
