@@ -675,6 +675,50 @@ impl App {
         }
     }
 
+    fn pick_folders(config: &mut SearchConfig, replace: bool) -> bool {
+        let mut file_dialog = FileDialog::new();
+        if let Some(path) = config.paths().last() {
+            if path.is_file() {
+                if let Some(dir) = path.parent() {
+                    file_dialog = file_dialog.set_directory(dir);
+                } else {
+                    file_dialog = file_dialog.set_directory(Self::cwd());
+                }
+            } else {
+                file_dialog = file_dialog.set_directory(path);
+            }
+        } else {
+            file_dialog = file_dialog.set_directory(Self::cwd());
+        }
+
+        match file_dialog.pick_folders() {
+            Some(folders) => {
+                let mut iter = folders.iter();
+                if let Some(first) = iter.next() {
+                    if replace {
+                        config.paths.clear();
+                    } else {
+                        match config.paths.chars().last() {
+                            None | Some(';') => (),
+                            _ => config.paths.push(';'),
+                        }
+                    }
+
+                    config.paths.push_str(first.to_string_lossy().as_ref());
+                    for folder in iter {
+                        config.paths.push(';');
+                        config.paths.push_str(folder.to_string_lossy().as_ref());
+                    }
+
+                    return true;
+                }
+            }
+            None => (),
+        };
+
+        return false;
+    }
+
     fn draw_tab(&mut self, ui: &Ui, tab_id: usize, mut tab: SearchTab) {
         tab.update_pending_search();
 
@@ -726,25 +770,13 @@ impl App {
                     show_help(ui, crate::help::PATHS_USAGE);
 
                     ui.same_line();
-                    if ui.button("...") {
-                        let maybe_folders = FileDialog::new().set_directory("/").pick_folders();
+                    if ui.button("Add") {
+                        paths_edited = Self::pick_folders(&mut tab.config, false);
+                    }
 
-                        match maybe_folders {
-                            Some(folders) => {
-                                for f in folders.iter() {
-                                    match tab.config.paths.chars().last() {
-                                        None | Some(';') => (),
-                                        _ => tab.config.paths.push(';'),
-                                    };
-
-                                    tab.config
-                                        .paths
-                                        .push_str(&f.as_path().display().to_string());
-                                }
-                                paths_edited = true;
-                            }
-                            None => (),
-                        }
+                    ui.same_line();
+                    if ui.button("Replace") {
+                        paths_edited = Self::pick_folders(&mut tab.config, true);
                     }
 
                     if paths_edited {

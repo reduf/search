@@ -294,30 +294,29 @@ pub struct SearchConfig {
 
 impl SearchConfig {
     pub fn default() -> Self {
-        Self {
+        return Self {
             paths: String::new(),
             globs: String::new(),
             queries: Vec::new(),
-        }
+        };
     }
 
     pub fn with_paths_and_patterns(paths: String, patterns: String) -> Self {
         let queries = vec![SearchQuery::new()];
-        Self {
+        return Self {
             paths,
             globs: patterns,
             queries,
-        }
+        };
     }
 
     pub fn paths(&self) -> Vec<&Path> {
-        let paths: Vec<&Path> = self
+        return self
             .paths
             .split(';')
             .filter(|value| !value.is_empty())
             .map(Path::new)
             .collect();
-        paths
     }
 
     pub fn overrides(&self) -> Override {
