@@ -776,9 +776,17 @@ impl App {
                         paths_edited = Self::pick_folders(&mut tab.config, false);
                     }
 
+                    if ui.is_item_hovered() {
+                        ui.tooltip_text("Add a new path(s) to searched path(s)");
+                    }
+
                     ui.same_line();
                     if ui.button("Replace") {
                         paths_edited = Self::pick_folders(&mut tab.config, true);
+                    }
+
+                    if ui.is_item_hovered() {
+                        ui.tooltip_text("Remove all current search path(s) and add selected path(s)");
                     }
 
                     if paths_edited {
