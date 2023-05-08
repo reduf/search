@@ -59,6 +59,7 @@ pub struct SearchTab {
     last_selected_id: Option<(usize, usize)>,
     error_message: Option<String>,
     focus_query_input: bool,
+    bg_extra_flags: TableFlags,
 }
 
 impl SearchTab {
@@ -81,6 +82,7 @@ impl SearchTab {
             last_selected_id: None,
             error_message: None,
             focus_query_input: true,
+            bg_extra_flags: TableFlags::empty(),
         }
     }
 
@@ -442,6 +444,12 @@ impl App {
             settings.search_binary,
             settings.number_of_threads as usize,
         ) {
+            if tab.config.queries.get(0).map(|query| query.extra_context != 0).unwrap_or(false) {
+                tab.bg_extra_flags = TableFlags::ROW_BG;
+            } else {
+                tab.bg_extra_flags = TableFlags::empty();
+            }
+
             tab.pending_search = Some(pending);
         }
     }
@@ -653,13 +661,7 @@ impl App {
         let clip = ListClipper::new(tab.results.len() as i32);
         let mut tok = clip.begin(ui);
 
-        let mut flags = TableFlags::REORDERABLE | TableFlags::SCROLL_X;
-
-        // @Enhancement: This refresh even if no new search happen.
-        if tab.config.queries.get(0).map(|query| query.extra_context != 0).unwrap_or(false) {
-            flags |= TableFlags::ROW_BG;
-        }
-
+        let flags = TableFlags::REORDERABLE | TableFlags::SCROLL_X | tab.bg_extra_flags;
         if let Some(_) = ui.begin_table_with_flags("table-headers", 3, flags) {
             ui.table_setup_column("File");
             ui.table_setup_column("Line");
