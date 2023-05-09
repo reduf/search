@@ -3,7 +3,7 @@ use glium::glutin::event::{Event, WindowEvent};
 use glium::glutin::event_loop::{ControlFlow, EventLoop};
 use glium::glutin::window::{Icon, WindowBuilder};
 use glium::{Display, Surface};
-use image::GenericImageView;
+// use image::GenericImageView;
 use imgui::{ConfigFlags, Context, FontConfig, FontGlyphRanges, FontSource};
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -21,13 +21,12 @@ pub struct System {
 }
 
 fn load_icon() -> Option<Icon> {
-    let buffer = include_bytes!("../resources/icons8-magnifying-glass-tilted-left-96.ico");
-    if let Ok(img) = image::load_from_memory(buffer) {
-        let (width, height) = img.dimensions();
-        let rgba_bytes = img.into_rgba8().into_vec();
-        Icon::from_rgba(rgba_bytes, width, height).ok()
+    let buffer = include_bytes!("../resources/icons8-magnifying-glass-tilted-left-96.png");
+    if let Ok(img) = crate::stb_image::load_bytes(buffer.as_ref()) {
+        let rgba_bytes = img.data().to_vec();
+        return Icon::from_rgba(rgba_bytes, img.width, img.height).ok();
     } else {
-        None
+        return None;
     }
 }
 

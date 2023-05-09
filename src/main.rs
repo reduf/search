@@ -10,6 +10,7 @@ mod search;
 mod settings;
 mod support;
 mod sys;
+mod stb_image;
 
 use clap::Parser;
 

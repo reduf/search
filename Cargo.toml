@@ -14,6 +14,7 @@ codegen-units = 1
 panic = "abort"
 
 [target.'cfg(windows)'.build-dependencies]
+cc = "1"
 winres = "0.1"
 
 [dependencies]
@@ -24,7 +25,6 @@ copypasta = "0.8.2"
 glium = { version = "0.32.1", default-features = true }
 grep = "0.2"
 ignore = "0.4"
-image = "0.24"
 imgui = { version = "0.10.0", features = ["tables-api"] }
 imgui-glium-renderer = "0.10.0"
 imgui-winit-support = "0.10.0"
