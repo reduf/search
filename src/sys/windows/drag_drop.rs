@@ -9,8 +9,8 @@ use windows::{
         Foundation::*,
         System::Com::*,
         System::Memory::*,
-        System::Ole::{DoDragDrop, IDropSource, IDropSource_Impl, DROPEFFECT, DROPEFFECT_COPY},
-        System::SystemServices::{CF_HDROP, MK_LBUTTON, MODIFIERKEYS_FLAGS},
+        System::Ole::{DoDragDrop, IDropSource, IDropSource_Impl, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY},
+        System::SystemServices::{MK_LBUTTON, MODIFIERKEYS_FLAGS},
         UI::Shell::DROPFILES,
     },
 };
@@ -49,7 +49,7 @@ impl DataObject {
             if format_etc.tymed as i32 != TYMED_HGLOBAL.0 {
                 return false;
             }
-            if format_etc.cfFormat as u32 != CF_HDROP.0 {
+            if format_etc.cfFormat != CF_HDROP.0 {
                 return false;
             }
             if format_etc.dwAspect != DVASPECT_CONTENT.0 {
@@ -69,7 +69,7 @@ impl IDataObject_Impl for DataObject {
             return Ok(STGMEDIUM {
                 tymed: TYMED_HGLOBAL,
                 Anonymous: STGMEDIUM_0 { hGlobal: self.0 },
-                pUnkForRelease: None,
+                pUnkForRelease: None.into(),
             });
         } else {
             return Err(Error::new(DV_E_FORMATETC, HSTRING::new()));
