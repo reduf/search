@@ -13,6 +13,10 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 
