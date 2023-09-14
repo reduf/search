@@ -71,18 +71,19 @@ pub fn init(title: &str) -> System {
         platform.attach_window(imgui.io_mut(), window, dpi_mode);
     }
 
+    let hidpi_factor = platform.hidpi_factor() as f32 ;
+
     imgui.fonts().add_font(&[
         FontSource::TtfData {
             data: include_bytes!("../resources/Lucon.ttf"),
-            size_pixels: 12.0,
+            size_pixels: 12.0 * hidpi_factor,
             config: Some(FontConfig {
-                // As imgui-glium-renderer isn't gamma-correct with
-                // it's font rendering, we apply an arbitrary
-                // multiplier to make the font a bit "heavier". With
-                // default imgui-glow-renderer this is unnecessary.
+                // As imgui-glium-renderer isn't gamma-correct with it's font rendering,
+                // we apply an arbitrary multiplier to make the font a bit "heavier".
+                // With default imgui-glow-renderer this is unnecessary.
                 rasterizer_multiply: 1.2,
-                // Oversampling font helps improve text rendering at
-                // expense of larger font atlas texture.
+                // Oversampling font helps improve text rendering at expense of larger
+                // font atlas texture.
                 oversample_h: 4,
                 oversample_v: 4,
                 ..FontConfig::default()
@@ -90,10 +91,10 @@ pub fn init(title: &str) -> System {
         },
         FontSource::TtfData {
             data: include_bytes!("../resources/mplus-1p-regular.ttf"),
-            size_pixels: 15.0,
+            size_pixels: 15.0 * hidpi_factor,
             config: Some(FontConfig {
-                // Oversampling font helps improve text rendering at
-                // expense of larger font atlas texture.
+                // Oversampling font helps improve text rendering at expense of larger
+                // font atlas texture.
                 oversample_h: 4,
                 oversample_v: 4,
                 // Range of glyphs to rasterize
@@ -105,13 +106,13 @@ pub fn init(title: &str) -> System {
 
     let renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
 
-    System {
+    return System {
         event_loop,
         display,
         imgui,
         platform,
         renderer,
-    }
+    };
 }
 
 impl System {
