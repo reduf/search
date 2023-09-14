@@ -104,6 +104,17 @@ pub fn init(title: &str) -> System {
         },
     ]);
 
+    // @Cleanup:
+    // This is apprently necessary on MacOS, because it pretend it has 2x less pixel
+    // than it actually does, so the trick is to rasterize the font twice as big and
+    // scale it down in order to have font of the right size, but crisp looking.
+    //
+    // Can somebody test??
+    //
+    // imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+
+    imgui.style_mut().scale_all_sizes(hidpi_factor);
+
     let renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
 
     return System {
@@ -175,6 +186,18 @@ impl System {
                 event: WindowEvent::Resized(new_size),
                 ..
             } => imgui.io_mut().display_size = [new_size.width as f32, new_size.height as f32],
+            /*
+            // @Cleanup:
+            // When testing on a Windows machine with hidpi (scaling factor 2), the mouse pos was
+            // multiplied by two. This seem to fix it, but might break on other platform? It would
+            // be something in "imgui-winit-support" crate, but not sure what yet.
+            //
+            // How does it look on other OS?
+            Event::WindowEvent {
+                event: WindowEvent::CursorMoved { position, ..},
+                ..
+            } => imgui.io_mut().add_mouse_pos_event([position.x as f32, position.y as f32]),
+            */
             event => {
                 let gl_window = display.gl_window();
                 if !app.handle_event(gl_window.window(), &event) {
