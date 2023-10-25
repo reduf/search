@@ -24,21 +24,21 @@ winres = "0.1"
 cc = "1"
 
 [dependencies]
-anyhow = "1.0.66"
-clap = { version = "4.1.8", features = ["derive"] }
-cfg-if = "1.0.0"
-copypasta = "0.8.2"
-glium = { version = "0.32.1", default-features = true }
+anyhow = "1"
+clap = { version = "4.1", features = ["derive"] }
+cfg-if = "1"
+copypasta = "0.8"
+glium = { version = "0.32", default-features = true }
 grep = "0.2"
 ignore = "0.4"
-imgui = { version = "0.11.0", features = ["tables-api"] }
-imgui-glium-renderer = "0.11.0"
-imgui-winit-support = "0.11.0"
-indoc = "1.0"
-regex = "1.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-rfd = "0.11.3"
+imgui = { version = "0.11", features = ["tables-api"] }
+imgui-glium-renderer = "0.11"
+imgui-winit-support = "0.11"
+indoc = "1"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rfd = { version = "0.12", default-features = false, features = ["gtk3"] }
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.44.0"
