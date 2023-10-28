@@ -500,7 +500,7 @@ impl App {
 
     fn draw_text_from_cow(ui: &Ui, color: Option<[f32; 4]>, text: std::borrow::Cow<'_, str>) {
         use std::borrow::Cow;
-        let _style = color.map(|color| ui.push_style_color(StyleColor::Text, color));
+        let _style = color.map(|color| ui.push_style_color(imgui::StyleColor::Text, color));
         match text {
             Cow::Borrowed(text) => ui.text(text),
             Cow::Owned(text) => ui.text(text),
@@ -879,7 +879,7 @@ impl App {
                 }
 
                 ui.same_line();
-                let color = ui.push_style_color(StyleColor::Button, [1.0, 0.0, 0.0, 1.0]);
+                let color = ui.push_style_color(imgui::StyleColor::Button, [1.0, 0.0, 0.0, 1.0]);
                 if ui.button("Cancel") {
                     tab.cancel_search(false);
                 }
