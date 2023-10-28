@@ -71,7 +71,7 @@ pub fn init(title: &str) -> System {
         platform.attach_window(imgui.io_mut(), window, dpi_mode);
     }
 
-    let hidpi_factor = platform.hidpi_factor() as f32 ;
+    let hidpi_factor = platform.hidpi_factor() as f32;
 
     imgui.fonts().add_font(&[
         FontSource::TtfData {
@@ -143,6 +143,8 @@ impl System {
             .config_flags
             .set(ConfigFlags::NAV_ENABLE_KEYBOARD, true);
 
+        let hidpi_factor = platform.hidpi_factor() as f32;
+
         let mut last_frame = Instant::now();
         event_loop.run(move |event, _, control_flow| match event {
             Event::NewEvents(_) => {
@@ -186,18 +188,13 @@ impl System {
                 event: WindowEvent::Resized(new_size),
                 ..
             } => imgui.io_mut().display_size = [new_size.width as f32, new_size.height as f32],
-            /*
             // @Cleanup:
-            // When testing on a Windows machine with hidpi (scaling factor 2), the mouse pos was
-            // multiplied by two. This seem to fix it, but might break on other platform? It would
-            // be something in "imgui-winit-support" crate, but not sure what yet.
-            //
-            // How does it look on other OS?
+            // Unclear whether that's really necessary or there is an issue in "imgui-winit-support"
+            // crate, but we need to do it.
             Event::WindowEvent {
                 event: WindowEvent::CursorMoved { position, ..},
                 ..
-            } => imgui.io_mut().add_mouse_pos_event([position.x as f32, position.y as f32]),
-            */
+            } => imgui.io_mut().add_mouse_pos_event([(position.x as f32)/hidpi_factor, (position.y as f32)/hidpi_factor]),
             event => {
                 let gl_window = display.gl_window();
                 if !app.handle_event(gl_window.window(), &event) {
