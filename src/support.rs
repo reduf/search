@@ -102,6 +102,30 @@ pub fn init(title: &str) -> System {
                 ..FontConfig::default()
             }),
         },
+        FontSource::TtfData {
+            data: include_bytes!("../resources/mplus-1p-regular.ttf"),
+            size_pixels: 15.0 * hidpi_factor,
+            config: Some(FontConfig {
+                // Oversampling font helps improve text rendering at expense of larger
+                // font atlas texture.
+                oversample_h: 4,
+                oversample_v: 4,
+                // Range of glyphs to rasterize
+                glyph_ranges: FontGlyphRanges::from_slice(&[
+                    0x0370, 0x03FF, // Greek and Coptic
+                    0x0400, 0x052F, // Cyrillic + Cyrillic Supplement
+                    0x0E00, 0x0E7F, // Thai
+                    0x2010, 0x205E, // Punctuations
+                    0x2DE0, 0x2DFF, // Cyrillic Extended-A
+                    0x3131, 0x3163, // Korean alphabets
+                    0xA640, 0xA69F, // Cyrillic Extended-B
+                    0xAC00, 0xD7A3, // Korean characters
+                    0xFFFD, 0xFFFD, // Invalid
+                    0,
+                ]),
+                ..FontConfig::default()
+            }),
+        },
     ]);
 
     // @Cleanup:
