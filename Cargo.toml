@@ -17,6 +17,9 @@ panic = "abort"
 inherits = "release"
 debug = true
 
+[features]
+console = []
+
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 

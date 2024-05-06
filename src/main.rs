@@ -1,4 +1,7 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(
+  all(target_os = "windows", not(feature = "console"), not(debug_assertions)),
+  windows_subsystem = "windows"
+)]
 
 mod app;
 mod args;
