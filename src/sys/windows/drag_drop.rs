@@ -160,7 +160,7 @@ pub fn enter_drag_drop(paths: &[&str]) {
     buffer.push(0);
 
     let size = std::mem::size_of::<DROPFILES>() + buffer.len() * 2;
-    let handle = unsafe { GlobalAlloc(GMEM_FIXED, size) };
+    let handle = unsafe { GlobalAlloc(GMEM_MOVEABLE, size) };
     let ptr = unsafe { GlobalLock(handle) };
 
     let header = ptr as *mut DROPFILES;
