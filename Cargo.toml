@@ -27,16 +27,21 @@ winres = "0.1"
 cc = "1"
 
 [dependencies]
+glium = { version = "0.34", default-features = false, features = ["glutin_backend"] }
+imgui-winit-support = "0.12"
+glutin = "0.31"
+glutin-winit = "0.4"
+winit = { version = "0.29", features = ["rwh_05"] }
+raw-window-handle = "0.5"
+
 anyhow = "1"
 clap = { version = "4.1", features = ["derive"] }
 cfg-if = "1"
 copypasta = "0.8"
-glium = { version = "0.32", default-features = true }
 grep = "0.2"
 ignore = "0.4"
-imgui = { version = "0.11", features = ["tables-api"] }
-imgui-glium-renderer = "0.11"
-imgui-winit-support = "0.11"
+imgui = { version = "0.12", features = ["tables-api"] }
+imgui-glium-renderer = "0.12"
 indoc = "1"
 regex = "1"
 serde = { version = "1", features = ["derive"] }

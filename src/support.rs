@@ -1,23 +1,35 @@
-use glium::glutin;
-use glium::glutin::event::{Event, WindowEvent};
-use glium::glutin::event_loop::{ControlFlow, EventLoop};
-use glium::glutin::window::{Icon, WindowBuilder};
-use glium::{Display, Surface};
-// use image::GenericImageView;
+use glium::Surface;
+use glutin::{
+    config::ConfigTemplateBuilder,
+    context::{ContextAttributesBuilder, NotCurrentGlContext},
+    display::{GetGlDisplay, GlDisplay},
+    surface::{SurfaceAttributesBuilder, WindowSurface},
+};
+use raw_window_handle::HasRawWindowHandle;
+
 use imgui::{ConfigFlags, Context, FontConfig, FontGlyphRanges, FontSource};
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
-use std::path::Path;
-use std::time::Instant;
+use imgui_winit_support::winit::{dpi::LogicalSize, event_loop::EventLoop, window::WindowBuilder};
+use winit::{
+    event::{Event, WindowEvent},
+    window::{Icon, Window},
+};
+use std::{
+    num::NonZeroU32,
+    path::Path,
+    time::Instant,
+};
 
 use crate::{app::App, clipboard};
 
 pub struct System {
     pub event_loop: EventLoop<()>,
-    pub display: glium::Display,
+    pub display: glium::Display<WindowSurface>,
     pub imgui: Context,
     pub platform: WinitPlatform,
     pub renderer: Renderer,
+    pub window: Window,
 }
 
 fn load_icon() -> Option<Icon> {
@@ -35,14 +47,45 @@ pub fn init(title: &str) -> System {
         Some(file_name) => file_name.to_str().unwrap(),
         None => title,
     };
-    let event_loop = EventLoop::new();
-    let context = glutin::ContextBuilder::new().with_vsync(true);
+    let event_loop = EventLoop::new().expect("Failed to create EventLoop");
+    // let context = glutin::ContextBuilder::new().with_vsync(true);
     let builder = WindowBuilder::new()
         .with_title(title.to_owned())
-        .with_inner_size(glutin::dpi::LogicalSize::new(1024f64, 768f64))
+        .with_inner_size(LogicalSize::new(1024f64, 768f64))
         .with_window_icon(load_icon());
-    let display =
-        Display::new(builder, context, &event_loop).expect("Failed to initialize display");
+
+     let (window, cfg) = glutin_winit::DisplayBuilder::new()
+        .with_window_builder(Some(builder))
+        .build(&event_loop, ConfigTemplateBuilder::new(), |mut configs| {
+            configs.next().unwrap()
+        })
+        .expect("Failed to create OpenGL window");
+    let window = window.unwrap();
+
+    let context_attribs = ContextAttributesBuilder::new().build(Some(window.raw_window_handle()));
+    let context = unsafe {
+        cfg.display()
+            .create_context(&cfg, &context_attribs)
+            .expect("Failed to create OpenGL context")
+    };
+
+    let surface_attribs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+        window.raw_window_handle(),
+        NonZeroU32::new(1024).unwrap(),
+        NonZeroU32::new(768).unwrap(),
+    );
+    let surface = unsafe {
+        cfg.display()
+            .create_window_surface(&cfg, &surface_attribs)
+            .expect("Failed to create OpenGL surface")
+    };
+
+    let context = context
+        .make_current(&surface)
+        .expect("Failed to make OpenGL context current");
+
+    let display = glium::Display::from_context_surface(context, surface)
+        .expect("Failed to create glium Display");
 
     let mut imgui = Context::create();
     imgui.set_ini_filename(None);
@@ -55,9 +98,6 @@ pub fn init(title: &str) -> System {
 
     let mut platform = WinitPlatform::init(&mut imgui);
     {
-        let gl_window = display.gl_window();
-        let window = gl_window.window();
-
         let dpi_mode = if let Ok(factor) = std::env::var("IMGUI_EXAMPLE_FORCE_DPI_FACTOR") {
             // Allow forcing of HiDPI factor for debugging purposes
             match factor.parse::<f64>() {
@@ -68,7 +108,7 @@ pub fn init(title: &str) -> System {
             HiDpiMode::Default
         };
 
-        platform.attach_window(imgui.io_mut(), window, dpi_mode);
+        platform.attach_window(imgui.io_mut(), &window, dpi_mode);
     }
 
     let hidpi_factor = platform.hidpi_factor() as f32;
@@ -147,6 +187,7 @@ pub fn init(title: &str) -> System {
         imgui,
         platform,
         renderer,
+        window,
     };
 }
 
@@ -158,6 +199,7 @@ impl System {
             mut imgui,
             mut platform,
             mut renderer,
+            window,
             ..
         } = self;
 
@@ -170,32 +212,39 @@ impl System {
         let hidpi_factor = platform.hidpi_factor() as f32;
 
         let mut last_frame = Instant::now();
-        event_loop.run(move |event, _, control_flow| match event {
+        event_loop.run(move |event, window_target| match event {
             Event::NewEvents(_) => {
                 let now = Instant::now();
                 imgui.io_mut().update_delta_time(now - last_frame);
                 last_frame = now;
             }
-            Event::MainEventsCleared => {
-                let gl_window = display.gl_window();
+            Event::AboutToWait => {
                 platform
-                    .prepare_frame(imgui.io_mut(), gl_window.window())
+                    .prepare_frame(imgui.io_mut(), &window)
                     .expect("Failed to prepare frame");
-                gl_window.window().request_redraw();
+                window.request_redraw();
             }
-            Event::RedrawRequested(_) => {
+            Event::WindowEvent {
+                event: WindowEvent::RedrawRequested,
+                ..
+            } => {
+                // Create frame for the all important `&imgui::Ui`
                 let ui = imgui.frame();
 
                 let mut run = true;
                 app.update(&mut run, ui);
                 if !run {
-                    *control_flow = ControlFlow::Exit;
+                    window_target.exit();
                 }
 
-                let gl_window = display.gl_window();
+                // Setup for drawing
                 let mut target = display.draw();
+
+                // Renderer doesn't automatically clear window
                 target.clear_color_srgb(1.0, 1.0, 1.0, 1.0);
-                platform.prepare_render(ui, gl_window.window());
+
+                // Perform rendering
+                platform.prepare_render(ui, &window);
                 let draw_data = imgui.render();
                 renderer
                     .render(&mut target, draw_data)
@@ -207,7 +256,7 @@ impl System {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => *control_flow = ControlFlow::Exit,
+            } => window_target.exit(),
             Event::WindowEvent {
                 event: WindowEvent::Resized(new_size),
                 ..
@@ -220,11 +269,10 @@ impl System {
                 ..
             } => imgui.io_mut().add_mouse_pos_event([(position.x as f32)/hidpi_factor, (position.y as f32)/hidpi_factor]),
             event => {
-                let gl_window = display.gl_window();
-                if !app.handle_event(gl_window.window(), &event) {
-                    platform.handle_event(imgui.io_mut(), gl_window.window(), &event);
+                if !app.handle_event(&window, &event) {
+                    platform.handle_event(imgui.io_mut(), &window, &event);
                 }
             }
-        });
+        }).expect("why did this fail?!?");
     }
 }

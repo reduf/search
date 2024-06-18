@@ -1,5 +1,13 @@
-use glium::glutin::{
-    event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+use winit::{
+    event::{
+        DeviceEvent,
+        ElementState,
+        Event,
+        KeyEvent,
+        RawKeyEvent,
+        WindowEvent,
+    },
+    keyboard::{KeyCode, ModifiersKeyState, PhysicalKey},
     window::Window,
 };
 use imgui::*;
@@ -168,6 +176,10 @@ pub fn init(paths: Option<String>, patterns: Option<String>, config: Option<Stri
     return App::new(paths, patterns, config);
 }
 
+fn pressed(left: ModifiersKeyState, right: ModifiersKeyState) -> bool {
+    return left == ModifiersKeyState::Pressed || right == ModifiersKeyState::Pressed;
+}
+
 impl App {
     fn new(paths: Option<String>, patterns: Option<String>, config: Option<String>) -> Self {
         let settings = if let Some(config) = config {
@@ -206,14 +218,14 @@ impl App {
         return SearchTab::from_context(self.default_paths.clone(), self.default_patterns.clone());
     }
 
-    fn handle_key_modifier(&mut self, key: VirtualKeyCode, down: bool) -> bool {
-        if key == VirtualKeyCode::LShift || key == VirtualKeyCode::RShift {
+    fn handle_key_modifier(&mut self, key: KeyCode, down: bool) -> bool {
+        if key == KeyCode::ShiftLeft || key == KeyCode::ShiftRight {
             self.shift_pressed = down;
-        } else if key == VirtualKeyCode::LControl || key == VirtualKeyCode::RControl {
+        } else if key == KeyCode::ControlLeft || key == KeyCode::ControlRight {
             self.ctrl_pressed = down;
-        } else if key == VirtualKeyCode::LAlt || key == VirtualKeyCode::RAlt {
+        } else if key == KeyCode::AltLeft || key == KeyCode::AltRight {
             self.alt_pressed = down;
-        } else if key == VirtualKeyCode::LWin || key == VirtualKeyCode::RWin {
+        } else if key == KeyCode::SuperLeft || key == KeyCode::SuperRight {
             self.super_pressed = down;
         } else {
             return false;
@@ -232,9 +244,9 @@ impl App {
             // we might never see the release event if some other window gets focus.
             Event::DeviceEvent {
                 event:
-                    DeviceEvent::Key(KeyboardInput {
+                    DeviceEvent::Key(RawKeyEvent {
+                        physical_key: PhysicalKey::Code(key),
                         state: ElementState::Released,
-                        virtual_keycode: Some(key),
                         ..
                     }),
                 ..
@@ -252,16 +264,16 @@ impl App {
                 // We need to track modifiers separately because some system like macOS, will
                 // not reliably send modifier states during certain events like ScreenCapture.
                 // Gotta let the people show off their pretty imgui widgets!
-                self.shift_pressed = modifiers.shift();
-                self.ctrl_pressed = modifiers.ctrl();
-                self.alt_pressed = modifiers.alt();
-                self.super_pressed = modifiers.logo();
+                self.shift_pressed = pressed(modifiers.lshift_state(), modifiers.rshift_state());
+                self.ctrl_pressed = pressed(modifiers.lcontrol_state(), modifiers.rcontrol_state());
+                self.alt_pressed = pressed(modifiers.lalt_state(), modifiers.ralt_state());
+                self.super_pressed = pressed(modifiers.lsuper_state(), modifiers.rsuper_state());
                 return false;
             }
             WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        virtual_keycode: Some(key),
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(key),
                         state,
                         ..
                     },
@@ -279,11 +291,11 @@ impl App {
         }
     }
 
-    fn handle_key_event(&mut self, key: VirtualKeyCode, state: ElementState) -> bool {
+    fn handle_key_event(&mut self, key: KeyCode, state: ElementState) -> bool {
         let key_ctrl = self.ctrl_pressed;
         let key_shift = self.shift_pressed;
 
-        if key == VirtualKeyCode::T && key_ctrl {
+        if key == KeyCode::KeyT && key_ctrl {
             if state == ElementState::Pressed {
                 if key_shift {
                     let new_tab = if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
@@ -301,7 +313,7 @@ impl App {
         }
 
         // Rotate left with "PageUp".
-        if key == VirtualKeyCode::PageUp && key_ctrl {
+        if key == KeyCode::PageUp && key_ctrl {
             if state == ElementState::Released {
                 let new_id = if self.selected_tab == 0 {
                     self.tabs.len() - 1
@@ -314,7 +326,7 @@ impl App {
         }
 
         // Detect the right that select the tab to the right.
-        if key == VirtualKeyCode::PageDown && key_ctrl {
+        if key == KeyCode::PageDown && key_ctrl {
             if state == ElementState::Released {
                 let new_id = (self.selected_tab + 1) % self.tabs.len();
                 self.set_selected_tab = Some(new_id);
@@ -323,7 +335,7 @@ impl App {
         }
 
         // Rotate left or right with with "Tab".
-        if key == VirtualKeyCode::Tab && key_ctrl {
+        if key == KeyCode::Tab && key_ctrl {
             if state == ElementState::Released {
                 if key_shift {
                     let new_id = if self.selected_tab == 0 {
@@ -341,7 +353,7 @@ impl App {
         }
 
         // Detect the hotkey that select the tab to the right.
-        if key == VirtualKeyCode::W && key_ctrl {
+        if key == KeyCode::KeyW && key_ctrl {
             if state == ElementState::Released && !self.tabs.is_empty() {
                 self.tabs.drain(self.selected_tab..(self.selected_tab + 1));
                 let modul = std::cmp::max(self.tabs.len(), 1);
@@ -351,7 +363,7 @@ impl App {
         }
 
         // Cancel search if there is a search pending.
-        if key == VirtualKeyCode::Escape {
+        if key == KeyCode::Escape {
             if state == ElementState::Released {
                 if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
                     tab.cancel_search(false);
@@ -361,7 +373,7 @@ impl App {
         }
 
         // Open selected element in the editor.
-        if key == VirtualKeyCode::F4 {
+        if key == KeyCode::F4 {
             if state == ElementState::Pressed {
                 if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
                     if !self.settings.settings.editor_path().is_empty() {
@@ -392,7 +404,7 @@ impl App {
         }
 
         // Toggle the hotkey window.
-        if key == VirtualKeyCode::F1 {
+        if key == KeyCode::F1 {
             if state == ElementState::Pressed {
                 self.hotkeys.toggle_open();
             }
@@ -400,7 +412,7 @@ impl App {
         }
 
         // Focus the search window.
-        if key == VirtualKeyCode::F && key_ctrl {
+        if key == KeyCode::KeyF && key_ctrl {
             if state == ElementState::Pressed {
                 if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
                     tab.focus_query_input = true;
