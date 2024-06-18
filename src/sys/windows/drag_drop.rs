@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     ffi::{c_void, OsStr},
     os::windows::ffi::OsStrExt,
     sync::Once,
@@ -19,18 +20,85 @@ static OLE_UNINITIALIZE: Once = Once::new();
 fn init_ole() {
     let _ = OLE_UNINITIALIZE.call_once(|| {
         use windows::Win32::System::Ole::{OleInitialize};
-        let _ = unsafe { dbg!(OleInitialize(std::ptr::null_mut())) }.unwrap();
+        let _ = unsafe { OleInitialize(std::ptr::null_mut()) }.unwrap();
 
         // I guess we never deinitialize for now?
         // OleUninitialize
     });
 }
 
+const SUPPORTED_FORMATS: [FORMATETC; 1] = [
+    FORMATETC {
+        cfFormat: CF_HDROP.0,
+        ptd: std::ptr::null_mut(),
+        dwAspect: DVASPECT_CONTENT.0,
+        lindex: 0,
+        tymed: TYMED_HGLOBAL.0 as u32,
+    },
+];
+
 #[implement(IDataObject)]
 struct DataObject(isize);
 
 #[implement(IDropSource)]
 struct DropSource(());
+
+#[implement(IEnumFORMATETC)]
+struct FormatEnumerator {
+    formats: &'static [FORMATETC],
+    current: Cell<usize>,
+}
+
+impl FormatEnumerator {
+    pub fn new(formats: &'static [FORMATETC]) -> Self {
+        return Self { formats, current: Cell::new(0) };
+    }
+}
+
+#[allow(non_snake_case)]
+impl IEnumFORMATETC_Impl for FormatEnumerator {
+    fn Next(&self, celt: u32, rgelt: *mut FORMATETC, pceltFetched: *mut u32) -> Result<()> {
+        if celt != 1 && pceltFetched.is_null() {
+            return Err(Error::new(S_FALSE, HSTRING::new()));
+        }
+
+        let current = self.current.get();
+        let count = std::cmp::min(celt as usize, self.formats.len() - current);
+        if count == 0 {
+            return Err(Error::new(S_FALSE, HSTRING::new()));
+        }
+
+        let output: &mut [FORMATETC] = unsafe { std::slice::from_raw_parts_mut(rgelt, celt as usize) };
+        for (idx, fmt) in (&self.formats[current..count]).iter().enumerate() {
+            output[idx] = fmt.clone();
+        }
+
+        if !pceltFetched.is_null() {
+            unsafe { std::ptr::write(pceltFetched, count as u32) };
+        }
+
+        self.current.set(current + count);
+        return Ok(());
+    }
+
+    fn Skip(&self, celt: u32) -> Result<()> {
+        let current = std::cmp::min(self.current.get() + (celt as usize), self.formats.len());
+        self.current.set(current);
+        return Ok(());
+    }
+
+    fn Reset(&self) -> Result<()> {
+        self.current.set(0);
+        return Ok(());
+    }
+
+    fn Clone(&self) -> Result<IEnumFORMATETC> {
+        return Ok(FormatEnumerator {
+            formats: self.formats,
+            current: self.current.clone(),
+        }.into());
+    }
+}
 
 impl DropSource {
     fn new() -> Self {
@@ -45,7 +113,6 @@ impl DataObject {
 
     fn is_supported_format(pformatetc: *const FORMATETC) -> bool {
         if let Some(format_etc) = unsafe { pformatetc.as_ref() } {
-            dbg!(format_etc);
             if format_etc.tymed as i32 != TYMED_HGLOBAL.0 {
                 return false;
             }
@@ -65,6 +132,12 @@ impl DataObject {
 #[allow(non_snake_case)]
 impl IDataObject_Impl for DataObject {
     fn GetData(&self, pformatetc: *const FORMATETC) -> Result<STGMEDIUM> {
+        if let Some(fmt) = unsafe { pformatetc.as_ref() } {
+            if fmt.tymed != TYMED_HGLOBAL.0 as u32 {
+                return Err(Error::new(STG_E_MEDIUMFULL, HSTRING::new()));
+            }
+        }
+
         if Self::is_supported_format(pformatetc) {
             return Ok(STGMEDIUM {
                 tymed: TYMED_HGLOBAL,
@@ -72,7 +145,7 @@ impl IDataObject_Impl for DataObject {
                 pUnkForRelease: None.into(),
             });
         } else {
-            return Err(Error::new(DV_E_FORMATETC, HSTRING::new()));
+            return Err(Error::new(S_FALSE, HSTRING::new()));
         }
     }
 
@@ -81,10 +154,27 @@ impl IDataObject_Impl for DataObject {
     }
 
     fn QueryGetData(&self, pformatetc: *const FORMATETC) -> HRESULT {
-        if Self::is_supported_format(pformatetc) {
+        if let Some(fmt) = unsafe { pformatetc.as_ref() } {
+            if fmt.dwAspect != DVASPECT_CONTENT.0 {
+                return DV_E_DVASPECT;
+            }
+
+            if fmt.cfFormat != CF_HDROP.0 {
+                return DV_E_FORMATETC;
+            }
+
+            // @Remark:
+            // Somehow if we do this check Visual Studio doesn't query for other "tymed",
+            // so after failing for "TYMED_STREAM", it stop the process of finding out
+            // supported format.
+            //
+            if fmt.tymed != TYMED_HGLOBAL.0 as u32 {
+                return DV_E_TYMED;
+            }
+
             return S_OK;
         } else {
-            return DV_E_FORMATETC;
+            return E_INVALIDARG;
         }
     }
 
@@ -107,7 +197,10 @@ impl IDataObject_Impl for DataObject {
     }
 
     fn EnumFormatEtc(&self, _dwdirection: u32) -> Result<IEnumFORMATETC> {
-        return Err(Error::new(E_NOTIMPL, HSTRING::new()));
+        // @Remark:
+        // We need to support format enumeration for Visual Studio even though
+        // it completely ignore what we return...
+        return Ok(FormatEnumerator::new(&SUPPORTED_FORMATS).into())
     }
 
     fn DAdvise(
@@ -182,5 +275,5 @@ pub fn enter_drag_drop(paths: &[&str]) {
     let drop_source = DropSource::new().into();
 
     let mut effect = DROPEFFECT(0);
-    let _ = unsafe { dbg!(DoDragDrop(&data_object, &drop_source, DROPEFFECT_COPY, &mut effect)) };
+    let _ = unsafe { DoDragDrop(&data_object, &drop_source, DROPEFFECT_COPY, &mut effect) };
 }
