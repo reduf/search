@@ -45,7 +45,9 @@ pub const SETTINGS_INCREMENTAL_SEARCH_HELP: &str = indoc! {"
 "};
 
 pub const SETTINGS_EDITOR_HELP: &str = indoc! {"
-    Command line to use when using F4 which can be interpolated with:
+    Editor use when double clicking or using F4. The 'System' config will try
+    to use the system defined editor, and the custom allows you to specify a
+    command line which can be interpolated with:
     - {file} Path to the file
     - {line} Line of the result
 "};

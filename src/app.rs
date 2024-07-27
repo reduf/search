@@ -14,7 +14,7 @@ use imgui::*;
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
-    process::{Child, Command},
+    process::Child,
     rc::Rc,
     sync::mpsc::TryRecvError,
     time::Duration,
@@ -30,7 +30,7 @@ pub struct App {
 
     settings: SettingsWindow,
     hotkeys: HotkeysWindow,
-    commands: VecDeque<Command>,
+    commands: VecDeque<(String, usize)>,
     drag_files: Vec<String>,
     tabs: Vec<SearchTab>,
     selected_tab: usize,
@@ -376,27 +376,11 @@ impl App {
         if key == KeyCode::F4 {
             if state == ElementState::Pressed {
                 if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
-                    if !self.settings.settings.editor_path().is_empty() {
-                        if let Some((row_id, line_id)) = tab.last_focused_id {
-                            let command = build_command(
-                                self.settings.settings.editor_path(),
-                                tab.results[row_id].path.as_ref().clone(),
-                                tab.results[row_id].lines[line_id].line_number as usize,
-                            );
-
-                            if let Ok(command) = command {
-                                self.commands.push_back(command);
-                            } else {
-                                println!(
-                                    "Invalid editor '{}'",
-                                    self.settings.settings.editor_path()
-                                );
-                            }
-                        }
-                    } else {
-                        let error = String::from("Editor not configured");
-                        println!("{}", error);
-                        tab.error_message = Some(error);
+                    if let Some((row_id, line_id)) = tab.last_focused_id {
+                        self.commands.push_back((
+                            tab.results[row_id].path.as_ref().clone(),
+                            tab.results[row_id].lines[line_id].line_number as usize,
+                        ));
                     }
                 }
             }
@@ -564,20 +548,10 @@ impl App {
             .build()
         {
             if ui.is_mouse_double_clicked(MouseButton::Left) {
-                let command = build_command(
-                    self.settings.settings.editor_path(),
+                self.commands.push_back((
                     full_path.as_ref().clone(),
                     line.line_number as usize,
-                );
-
-                if let Ok(command) = command {
-                    self.commands.push_back(command);
-                } else {
-                    println!(
-                        "Invalid editor '{}'",
-                        self.settings.settings.editor_path()
-                    );
-                }
+                ));
             } else {
                 tab.last_selected_id = Some((row_id, line_id));
             }
@@ -606,20 +580,10 @@ impl App {
 
         if let Some(_) = ui.begin_popup("row-context") {
             if ui.menu_item_config("Open").shortcut("F4").build() {
-                let command = build_command(
-                    self.settings.settings.editor_path(),
+                self.commands.push_back((
                     full_path.as_ref().clone(),
                     line.line_number as usize,
-                );
-
-                if let Ok(command) = command {
-                    self.commands.push_back(command);
-                } else {
-                    println!(
-                        "Invalid editor '{}'",
-                        self.settings.settings.editor_path()
-                    );
-                }
+                ));
             }
 
             if ui.menu_item_config("Copy Full Path").build() {
@@ -985,16 +949,51 @@ impl App {
                 }
             };
 
+            if self.settings.settings.use_custom_editor() &&
+                self.settings.settings.editor_path().is_empty()
+            {
+                let error = String::from("Editor not configured");
+                println!("{}", error);
+                if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                    tab.error_message = Some(error);
+                }
+                self.commands.clear();
+            }
+
             while self.pending_command.is_none() {
-                if let Some(mut command) = self.commands.pop_front() {
-                    if let Ok(child) = command.spawn() {
-                        self.pending_command = Some(child);
+                if let Some((file_path, line_number)) = self.commands.pop_front() {
+                    if !self.settings.settings.use_custom_editor() {
+                        let path = Path::new(&file_path);
+                        if let Err(err) = crate::sys::shell::edit_file(&path) {
+                            let msg = format!("Failed to edit '{}' with the shell, err: {:?}", file_path, err);
+                            println!("{}", msg);
+                            if let Some(tab) = self.tabs.get_mut(self.selected_tab) {
+                                tab.error_message = Some(msg);
+                            }
+                        }
                     } else {
-                        println!(
-                            "Failed to start editor '{:?}' with args '{:?}'",
-                            command.get_program(),
-                            command.get_args()
+                        let command = build_command(
+                            self.settings.settings.editor_path(),
+                            file_path,
+                            line_number,
                         );
+
+                        if let Ok(mut command) = command {
+                            if let Ok(child) = command.spawn() {
+                                self.pending_command = Some(child);
+                            } else {
+                                println!(
+                                    "Failed to start editor '{:?}' with args '{:?}'",
+                                    command.get_program(),
+                                    command.get_args()
+                                );
+                            }
+                        } else {
+                            println!(
+                                "Invalid editor '{}'",
+                                self.settings.settings.editor_path()
+                            );
+                        }
                     }
                 } else {
                     break;

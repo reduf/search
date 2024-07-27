@@ -22,6 +22,18 @@ impl Default for StyleColor {
 }
 
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq)]
+pub enum Editor {
+    System,
+    Custom,
+}
+
+impl Default for Editor {
+    fn default() -> Self {
+        Self::Custom
+    }
+}
+
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq)]
 pub enum PathStyle {
     Absolute,
     FileName,
@@ -66,6 +78,8 @@ pub struct Settings {
     #[serde(default)]
     pub search_binary: bool,
     #[serde(default)]
+    pub editor: Editor,
+    #[serde(default)]
     pub editor_path: String,
     #[serde(default)]
     pub style_color: StyleColor,
@@ -81,6 +95,10 @@ impl Settings {
         return "C:\\Windows\\notepad.exe {file}";
         #[cfg(not(windows))]
         return "nano +{line} {file}";
+    }
+
+    pub fn use_custom_editor(&self) -> bool {
+        return self.editor == Editor::Custom;
     }
 
     pub fn editor_path(&self) -> &str {
@@ -317,25 +335,33 @@ impl SettingsWindow {
                 ui.table_next_column();
                 ui.text("Editor Path: ");
                 ui.table_next_column();
-                ui.input_text("##editor", &mut self.settings.editor_path)
-                    .hint(Settings::default_editor_path())
-                    .build();
+                ui.radio_button("System", &mut self.settings.editor, Editor::System);
                 ui.same_line();
-                if ui.button("...") {
-                    let maybe_file = FileDialog::new()
-                        .add_filter("Executable files", &["exe"])
-                        .set_directory("/")
-                        .pick_file();
-                    match maybe_file {
-                        Some(f) => {
-                            self.settings.editor_path.clear();
-                            self.settings.editor_path.push('"');
-                            self.settings
-                                .editor_path
-                                .push_str(&f.as_path().display().to_string());
-                            self.settings.editor_path.push('"');
+                ui.radio_button("Custom", &mut self.settings.editor, Editor::Custom);
+                ui.same_line();
+                //ui.table_next_column();
+                //ui.table_next_column();
+                if self.settings.editor == Editor::Custom {
+                    ui.input_text("##editor", &mut self.settings.editor_path)
+                        .hint(Settings::default_editor_path())
+                        .build();
+                    ui.same_line();
+                    if ui.button("...") {
+                        let maybe_file = FileDialog::new()
+                            .add_filter("Executable files", &["exe"])
+                            .set_directory("/")
+                            .pick_file();
+                        match maybe_file {
+                            Some(f) => {
+                                self.settings.editor_path.clear();
+                                self.settings.editor_path.push('"');
+                                self.settings
+                                    .editor_path
+                                    .push_str(&f.as_path().display().to_string());
+                                self.settings.editor_path.push('"');
+                            }
+                            None => {}
                         }
-                        None => {}
                     }
                 }
 
