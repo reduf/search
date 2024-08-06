@@ -10,12 +10,11 @@ use windows::Win32::{
 };
 
 pub fn edit_file(path: &Path) -> io::Result<()> {
-    let op = HSTRING::from("edit");
     let path = HSTRING::from(path.as_os_str());
     let ret = unsafe {
         ShellExecuteW( 
             HWND(0),
-            &op,
+            PCWSTR::null(),
             &path,
             PCWSTR::null(),
             PCWSTR::null(),
