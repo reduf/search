@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use crate::settings::Settings;
 use grep::{
     matcher::Matcher,
     regex::{RegexMatcher, RegexMatcherBuilder},
@@ -364,11 +365,7 @@ impl SearchConfig {
     }
 }
 
-pub fn spawn_search(
-    config: &SearchConfig,
-    search_binary: bool,
-    number_of_threads: usize,
-) -> Result<PendingSearch> {
+pub fn spawn_search(config: &SearchConfig, settings: &Settings) -> Result<PendingSearch> {
     let (tx, rx) = mpsc::channel();
     let pending_search = PendingSearch::new(rx);
 
@@ -387,8 +384,11 @@ pub fn spawn_search(
         bail!("Can't search with no path");
     };
 
-    builder.overrides(config.overrides());
+    builder
+        .overrides(config.overrides())
+        .hidden(!settings.search_hidden.0);
 
+    let number_of_threads = settings.number_of_threads as usize;
     let threads = if number_of_threads == 0 {
         thread::available_parallelism()
             .map(|value| value.get())
@@ -398,6 +398,7 @@ pub fn spawn_search(
     };
 
     let walker = builder.threads(threads).build_parallel();
+    let search_binary = settings.search_binary;
 
     let quit = pending_search.quit.clone();
     std::thread::spawn(move || {

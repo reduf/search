@@ -435,11 +435,7 @@ impl App {
             tab.error_message = Some(error);
         }
 
-        if let Ok(pending) = crate::search::spawn_search(
-            &tab.config,
-            settings.search_binary,
-            settings.number_of_threads as usize,
-        ) {
+        if let Ok(pending) = crate::search::spawn_search(&tab.config, settings) {
             if tab.config.queries.get(0).map(|query| query.extra_context != 0).unwrap_or(false) {
                 tab.bg_extra_flags = TableFlags::ROW_BG;
             } else {

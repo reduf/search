@@ -38,6 +38,15 @@ pub const SETTINGS_SEARCH_BINARY_HELP: &str = indoc! {"
     of most binary files.
 "};
 
+pub const SETTINGS_SEARCH_HIDDEN_HELP: &str = indoc! {"
+    Search hidden files and directories. By default, hidden files and directories
+    are skipped.
+
+    A file or directory is considered hidden if its base name starts with a dot
+    character ('.'). On operating systems which support a `hidden` file attribute,
+    like Windows, files with this attribute are also considered hidden.
+"};
+
 pub const SETTINGS_INCREMENTAL_SEARCH_HELP: &str = indoc! {"
     Enabling this flag causes search to start every time the text input is updated.
     Disabling this flag causes search to only be started interactively, triggered

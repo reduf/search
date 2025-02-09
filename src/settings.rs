@@ -78,6 +78,8 @@ pub struct Settings {
     #[serde(default)]
     pub search_binary: bool,
     #[serde(default)]
+    pub search_hidden: BoolTrue,
+    #[serde(default)]
     pub editor: Editor,
     #[serde(default)]
     pub editor_path: String,
@@ -314,6 +316,12 @@ impl SettingsWindow {
                 ui.table_next_column();
                 ui.checkbox("##binary", &mut self.settings.search_binary);
                 help::show_help(ui, help::SETTINGS_SEARCH_BINARY_HELP);
+
+                ui.table_next_column();
+                ui.text("Search hidden: ");
+                ui.table_next_column();
+                ui.checkbox("##hidden", &mut self.settings.search_hidden.0);
+                help::show_help(ui, help::SETTINGS_SEARCH_HIDDEN_HELP);
 
                 ui.table_next_column();
                 ui.text("Incremental search: ");
